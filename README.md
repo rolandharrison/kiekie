@@ -160,6 +160,17 @@ coordinates mean the comment is about the whole image.
 
 ## Web UI
 
+- Dark by default, light when the OS asks, and either can be pinned with the
+  top-bar toggle (stored in `localStorage`, re-applied by an inline script in
+  `index.html` so there is no flash on load). One hand-written stylesheet,
+  `web/src/styles.css` — tokens rather than a utility framework, because the
+  public share page has to boot fast on a phone. The logo and icons are inline
+  SVG (`components/Logo.tsx`, `components/icons.tsx`) and the favicon is a data
+  URI, since anything under a separate path would sit outside the `/assets`
+  Access bypass and 302 to the login on share pages.
+- Layout is fluid from ~360px up: the viewer's comment rail sits beside the
+  image on desktop and stacks below it on a phone, and the share-links table
+  becomes labelled cards under 720px.
 - Collections ordered by most recent activity, each with its description and count.
 - Inside a collection, screenshots bucket into **Today · Last 3 days · Last week ·
   Last month · Older**, computed in the viewer's own timezone.

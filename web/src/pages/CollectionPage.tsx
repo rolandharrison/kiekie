@@ -3,6 +3,7 @@ import { api, imageUrl, type Collection, type Screenshot } from '../api';
 import { formatTimestamp, groupByBucket } from '../buckets';
 import { navigate } from '../router';
 import { ShareButton } from '../components/ShareButton';
+import { IconArrowLeft, IconUpload } from '../components/icons';
 
 export function CollectionPage({ cid }: { cid: string }) {
   const [collection, setCollection] = useState<Collection | null>(null);
@@ -45,9 +46,9 @@ export function CollectionPage({ cid }: { cid: string }) {
         <p class="notice error" data-testid="error">
           {error}
         </p>
-        <p>
+        <p style="margin-top:14px">
           <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
-            ← All collections
+            All collections
           </a>
         </p>
       </main>
@@ -63,36 +64,54 @@ export function CollectionPage({ cid }: { cid: string }) {
   }
 
   const buckets = groupByBucket(screenshots);
+  const total = screenshots.length;
 
   return (
     <main>
-      <p>
-        <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }} data-testid="back-to-collections">
-          ← All collections
-        </a>
-      </p>
+      <a
+        class="backlink"
+        href="/"
+        onClick={(e) => { e.preventDefault(); navigate('/'); }}
+        data-testid="back-to-collections"
+      >
+        <IconArrowLeft />
+        All collections
+      </a>
 
-      <div class="row" style="justify-content:space-between;align-items:flex-start">
-        <div>
+      <div class="page-head">
+        <div class="titles">
           <h1 data-testid="collection-title">{collection.name}</h1>
           <p class="subtle" data-testid="collection-description-text">
             {collection.description || 'No description'}
           </p>
+          <p class="subtle" style="margin:4px 0 0">
+            {total} screenshot{total === 1 ? '' : 's'}
+          </p>
         </div>
-        <ShareButton testId="share-collection" onShare={(days) => api.shareCollection(cid, days)} />
+        <div class="actions">
+          <ShareButton testId="share-collection" onShare={(days) => api.shareCollection(cid, days)} />
+        </div>
       </div>
 
-      <form class="card row" style="margin-top:16px" onSubmit={upload} data-testid="upload-form">
-        <input type="file" accept="image/*" ref={fileRef} data-testid="upload-input" style="flex:1" />
+      <form class="card panel row" onSubmit={upload} data-testid="upload-form">
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileRef}
+          aria-label="Screenshot file"
+          data-testid="upload-input"
+          style="flex:1;min-width:180px"
+        />
         <button class="primary" type="submit" data-testid="upload-submit" disabled={uploading}>
+          <IconUpload />
           {uploading ? 'Uploading…' : 'Upload screenshot'}
         </button>
       </form>
 
       {screenshots.length === 0 ? (
-        <p class="subtle" style="margin-top:24px" data-testid="no-screenshots">
+        <div class="empty" style="margin-top:24px" data-testid="no-screenshots">
           No screenshots in this collection yet.
-        </p>
+        </div>
       ) : (
         buckets.map((bucket) => (
           <section key={bucket.label} data-testid={`bucket-${bucket.label.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -114,6 +133,7 @@ export function CollectionPage({ cid }: { cid: string }) {
                     <span class="fn">{s.filename ?? s.id}</span>
                     <span
                       class={`badge${(s.annotation_count ?? 0) === 0 ? ' zero' : ''}`}
+                      title={`${s.annotation_count ?? 0} comment(s)`}
                       data-testid={`annotation-count-${s.id}`}
                     >
                       {s.annotation_count ?? 0}

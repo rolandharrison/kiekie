@@ -5,6 +5,7 @@ import { formatTimestamp } from '../buckets';
 import { Annotator, type Region } from '../components/Annotator';
 import { CommentList } from '../components/CommentList';
 import { ShareButton } from '../components/ShareButton';
+import { IconArrowLeft } from '../components/icons';
 
 export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
@@ -74,24 +75,25 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
   }
 
   const targetCid = collection?.id ?? cid;
+  const open = annotations.filter((a) => !a.resolved).length;
 
   return (
     <main>
-      <p>
-        <a
-          href={`/c/${targetCid}`}
-          data-testid="back-to-collection"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate(`/c/${targetCid}`);
-          }}
-        >
-          ← {collection?.name ?? 'Collection'}
-        </a>
-      </p>
+      <a
+        class="backlink"
+        href={`/c/${targetCid}`}
+        data-testid="back-to-collection"
+        onClick={(e) => {
+          e.preventDefault();
+          navigate(`/c/${targetCid}`);
+        }}
+      >
+        <IconArrowLeft />
+        {collection?.name ?? 'Collection'}
+      </a>
 
-      <div class="row" style="justify-content:space-between;align-items:flex-start">
-        <div>
+      <div class="page-head">
+        <div class="titles">
           <h1 data-testid="screenshot-title">{screenshot.filename ?? screenshot.id}</h1>
           <p class="subtle">
             {screenshot.width && screenshot.height ? `${screenshot.width}×${screenshot.height} · ` : ''}
@@ -99,10 +101,12 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             {screenshot.source_host ? ` · from ${screenshot.source_host}` : ''}
           </p>
         </div>
-        <ShareButton testId="share-screenshot" onShare={(days) => api.shareScreenshot(sid, days)} />
+        <div class="actions">
+          <ShareButton testId="share-screenshot" onShare={(days) => api.shareScreenshot(sid, days)} />
+        </div>
       </div>
 
-      <div class="viewer" style="margin-top:12px">
+      <div class="viewer">
         <div class="stack">
           <Annotator
             src={imageUrl(screenshot.r2_key)}
@@ -113,15 +117,20 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             onSelect={setActiveId}
             onDraft={setDraft}
           />
-          <p class="subtle">Click the image to drop a pin, or drag to mark a region.</p>
+          <p class="hint">
+            <span>
+              <kbd>Click</kbd> the image to drop a pin, or <kbd>drag</kbd> to mark a region.
+            </span>
+          </p>
 
           {draft && (
-            <form class="card stack" onSubmit={submitRegionComment} data-testid="region-composer">
+            <form class="card panel stack" onSubmit={submitRegionComment} data-testid="region-composer">
               <strong>
                 {draft.w === 0 && draft.h === 0 ? 'Pin' : 'Region'} comment
               </strong>
               <textarea
                 placeholder="What's wrong here?"
+                aria-label="Comment"
                 value={body}
                 data-testid="region-comment-input"
                 onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
@@ -139,42 +148,11 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
         </div>
 
         <div class="stack">
-          <div class="card stack">
-            <strong>Move to collection</strong>
-            <select
-              data-testid="move-select"
-              value={targetCid}
-              onChange={async (e) => {
-                const next = (e.target as HTMLSelectElement).value;
-                if (next === targetCid) return;
-                await api.moveScreenshot(sid, next);
-                navigate(`/c/${next}/s/${sid}`);
-                await refresh();
-              }}
-            >
-              {allCollections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <button
-              class="danger small"
-              data-testid="delete-screenshot"
-              onClick={async () => {
-                if (!confirm('Delete this screenshot?')) return;
-                await api.deleteScreenshot(sid);
-                navigate(`/c/${targetCid}`);
-              }}
-            >
-              Delete screenshot
-            </button>
-          </div>
-
           <form class="card stack" onSubmit={submitWholeComment} data-testid="whole-composer">
             <strong>Comment on the whole image</strong>
             <textarea
               placeholder="General feedback"
+              aria-label="Whole-image comment"
               value={wholeBody}
               data-testid="whole-comment-input"
               onInput={(e) => setWholeBody((e.target as HTMLTextAreaElement).value)}
@@ -184,8 +162,9 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             </button>
           </form>
 
-          <h2 style="margin:8px 0 0">
+          <h2 style="margin:12px 0 0">
             Comments (<span data-testid="comment-count">{annotations.length}</span>)
+            {annotations.length > 0 && open !== annotations.length ? ` · ${open} open` : ''}
           </h2>
           <CommentList
             annotations={annotations}
@@ -204,6 +183,43 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
               await refresh();
             }}
           />
+
+          <div class="card stack" style="margin-top:12px">
+            <strong>Manage</strong>
+            <label class="subtle" for="move-select">
+              Move to collection
+            </label>
+            <select
+              id="move-select"
+              data-testid="move-select"
+              value={targetCid}
+              onChange={async (e) => {
+                const next = (e.target as HTMLSelectElement).value;
+                if (next === targetCid) return;
+                await api.moveScreenshot(sid, next);
+                navigate(`/c/${next}/s/${sid}`);
+                await refresh();
+              }}
+            >
+              {allCollections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              class="danger small"
+              style="align-self:flex-start"
+              data-testid="delete-screenshot"
+              onClick={async () => {
+                if (!confirm('Delete this screenshot?')) return;
+                await api.deleteScreenshot(sid);
+                navigate(`/c/${targetCid}`);
+              }}
+            >
+              Delete screenshot
+            </button>
+          </div>
         </div>
       </div>
     </main>

@@ -2,8 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Screenshot collection and annotation for agent workflows." />
+    <meta name="theme-color" content="#0b0e15" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
     <title>kiekie</title>
+    <!--
+      The favicon is inlined as a data URI on purpose. A separate /favicon.svg
+      would sit outside /assets, which is the only path Cloudflare Access
+      bypasses, so public share pages would request it and get the login
+      redirect instead of an icon.
+    -->
+    <link
+      rel="icon"
+      href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="%236d8cff"/><stop offset="1" stop-color="%23a35cf5"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(%23g)"/><g stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 13V10.6A1.6 1.6 0 0 1 10.6 9H13"/><path d="M19 9h2.4A1.6 1.6 0 0 1 23 10.6V13"/><path d="M23 19v2.4a1.6 1.6 0 0 1-1.6 1.6H19"/><path d="M13 23h-2.4A1.6 1.6 0 0 1 9 21.4V19"/></g><circle cx="16" cy="16" r="3.4" fill="white"/></svg>'
+    />
+    <script>
+      // Applied before first paint so a light-theme user never sees a dark flash.
+      try {
+        var t = localStorage.getItem('kiekie-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>

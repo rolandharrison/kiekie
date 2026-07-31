@@ -49,12 +49,18 @@ export function CommentList({
           onClick={() => onSelect?.(activeId === a.id ? null : a.id)}
         >
           <div class="who">
+            <span class="avatar" aria-hidden="true">
+              {(a.author ?? '?').trim().charAt(0).toUpperCase() || '?'}
+            </span>
             <strong>{a.author ?? 'unknown'}</strong>
             <span>·</span>
             <span>{formatTimestamp(a.created_at)}</span>
-            <span>·</span>
-            <span data-testid={`comment-kind-${a.id}`}>{describe(a)}</span>
-            {a.resolved && <span data-testid={`comment-resolved-${a.id}`}>· resolved</span>}
+            <span class="kind-tag" data-testid={`comment-kind-${a.id}`}>{describe(a)}</span>
+            {a.resolved && (
+              <span class="kind-tag ok" data-testid={`comment-resolved-${a.id}`}>
+                resolved
+              </span>
+            )}
           </div>
 
           {editing === a.id ? (

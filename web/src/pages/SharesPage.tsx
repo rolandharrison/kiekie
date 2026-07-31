@@ -16,22 +16,28 @@ export function SharesPage() {
 
   return (
     <main>
-      <h1>Share links</h1>
-      <p class="subtle">
-        Anyone with one of these URLs can view — read only, no login. Expired links stay listed
-        until you revoke them, so you can see what you shared.
-      </p>
+      <div class="page-head">
+        <div class="titles">
+          <h1>Share links</h1>
+          <p class="subtle">
+            Anyone with one of these URLs can view — read only, no login. Expired links stay listed
+            until you revoke them, so you can see what you shared.
+          </p>
+        </div>
+      </div>
 
       {error && <p class="notice error">{error}</p>}
 
       {links === null ? (
         <p class="subtle">Loading…</p>
       ) : links.length === 0 ? (
-        <p class="subtle" data-testid="no-shares">
+        <div class="empty" data-testid="no-shares">
           No active share links.
-        </p>
+        </div>
       ) : (
-        <table style="margin-top:16px" data-testid="share-table">
+        // Below 720px the CSS turns each row into a labelled card, which is what
+        // the data-label attributes are for — a seven-column table cannot fit.
+        <table data-testid="share-table">
           <thead>
             <tr>
               <th>Target</th>
@@ -46,16 +52,22 @@ export function SharesPage() {
           <tbody>
             {links.map((l) => (
               <tr key={l.token} data-testid={`share-row-${l.token}`} data-expired={l.expired ? 'true' : 'false'}>
-                <td>{l.target_label ?? l.target_id}</td>
-                <td>{l.kind}</td>
-                <td>
+                <td data-label="Target">{l.target_label ?? l.target_id}</td>
+                <td data-label="Kind">
+                  <span class="kind-tag">{l.kind}</span>
+                </td>
+                <td data-label="Link" class="link">
                   <a href={l.url} target="_blank" rel="noreferrer" data-testid={`share-url-${l.token}`}>
                     {l.url}
                   </a>
                 </td>
-                <td class="subtle">{l.created_by ?? '—'}</td>
-                <td class="subtle">{formatTimestamp(l.created_at)}</td>
-                <td class="subtle" data-testid={`share-expiry-${l.token}`}>
+                <td data-label="Created by" class="subtle">
+                  {l.created_by ?? '—'}
+                </td>
+                <td data-label="Created" class="subtle">
+                  {formatTimestamp(l.created_at)}
+                </td>
+                <td data-label="Expires" class="subtle" data-testid={`share-expiry-${l.token}`}>
                   {l.expires_at === null ? (
                     'Never'
                   ) : l.expired ? (

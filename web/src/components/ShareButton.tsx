@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { MintedShare } from '../api';
 import { formatTimestamp } from '../buckets';
+import { IconLink, IconShare } from './icons';
 
 interface Props {
   onShare: (expiresInDays: number | null) => Promise<MintedShare>;
@@ -44,9 +45,10 @@ export function ShareButton({ onShare, testId = 'share-button', label = 'Share' 
 
   if (!minted) {
     return (
-      <div class="row">
+      <div class="row" style="gap:8px">
         <select
           data-testid={`${testId}-expiry`}
+          aria-label="Share link expiry"
           value={days === null ? '' : String(days)}
           style="width:auto"
           onChange={(e) => {
@@ -61,6 +63,7 @@ export function ShareButton({ onShare, testId = 'share-button', label = 'Share' 
           ))}
         </select>
         <button class="small" data-testid={testId} disabled={busy} onClick={share}>
+          <IconShare />
           {busy ? 'Sharing…' : label}
         </button>
       </div>
@@ -68,8 +71,9 @@ export function ShareButton({ onShare, testId = 'share-button', label = 'Share' 
   }
 
   return (
-    <div class="stack" style="gap:4px" data-testid={`${testId}-result`}>
+    <div class="stack" style="gap:6px;align-items:stretch" data-testid={`${testId}-result`}>
       <div class="share-row">
+        <IconLink />
         <code data-testid={`${testId}-url`}>{minted.url}</code>
         <a
           class="btn small"

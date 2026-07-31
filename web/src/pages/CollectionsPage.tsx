@@ -3,6 +3,7 @@ import { api, type Collection } from '../api';
 import { navigate } from '../router';
 import { formatTimestamp } from '../buckets';
 import { ShareButton } from '../components/ShareButton';
+import { IconPlus } from '../components/icons';
 
 export function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[] | null>(null);
@@ -36,34 +37,41 @@ export function CollectionsPage() {
 
   return (
     <main>
-      <h1>Collections</h1>
-      <p class="subtle">Most recently updated first.</p>
+      <div class="page-head">
+        <div class="titles">
+          <h1>Collections</h1>
+          <p class="subtle">Most recently updated first.</p>
+        </div>
+      </div>
 
       {error && (
-        <p class="notice error" data-testid="error">
+        <p class="notice error" data-testid="error" style="margin-bottom:16px">
           {error}
         </p>
       )}
 
-      <form class="card stack" style="margin-top:16px" onSubmit={create} data-testid="new-collection-form">
+      <form class="card panel" onSubmit={create} data-testid="new-collection-form">
         <div class="row">
           <input
             type="text"
             placeholder="Collection name"
+            aria-label="Collection name"
             data-testid="collection-name"
             value={name}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            style="flex:1;min-width:200px"
+            style="flex:1;min-width:180px"
           />
           <input
             type="text"
             placeholder="What is this collection for?"
+            aria-label="Collection description"
             data-testid="collection-description"
             value={description}
             onInput={(e) => setDescription((e.target as HTMLInputElement).value)}
-            style="flex:2;min-width:240px"
+            style="flex:2;min-width:220px"
           />
           <button class="primary" type="submit" data-testid="create-collection" disabled={!name.trim()}>
+            <IconPlus />
             Create
           </button>
         </div>
@@ -74,9 +82,9 @@ export function CollectionsPage() {
           Loading…
         </p>
       ) : collections.length === 0 ? (
-        <p class="subtle" style="margin-top:20px" data-testid="no-collections">
+        <div class="empty" style="margin-top:20px" data-testid="no-collections">
           No collections yet — create one above.
-        </p>
+        </div>
       ) : (
         <div class="collection-list" data-testid="collection-list">
           {collections.map((c) => (
@@ -87,12 +95,14 @@ export function CollectionsPage() {
                     <input
                       type="text"
                       value={editName}
+                      aria-label="Name"
                       data-testid="edit-name"
                       onInput={(e) => setEditName((e.target as HTMLInputElement).value)}
                     />
                     <input
                       type="text"
                       value={editDescription}
+                      aria-label="Description"
                       data-testid="edit-description"
                       onInput={(e) => setEditDescription((e.target as HTMLInputElement).value)}
                     />
@@ -124,7 +134,7 @@ export function CollectionsPage() {
                     <div class="desc" data-testid={`collection-desc-${c.id}`}>
                       {c.description || <em>no description</em>}
                     </div>
-                    <div class="subtle" style="margin-top:4px">
+                    <div class="subtle" style="margin-top:6px">
                       <span data-testid={`collection-count-${c.id}`}>{c.screenshot_count ?? 0}</span> screenshot
                       {(c.screenshot_count ?? 0) === 1 ? '' : 's'} · updated {formatTimestamp(c.updated_at)}
                     </div>
@@ -132,7 +142,7 @@ export function CollectionsPage() {
                 )}
               </div>
 
-              <div class="stack" style="align-items:flex-end">
+              <div class="stack" style="align-items:flex-end;gap:8px">
                 <div class="row">
                   <button
                     class="small"
