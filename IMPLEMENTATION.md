@@ -261,13 +261,24 @@ Live at `https://kiekie.example`. GitHub Actions (`.github/workflows/deploy.yml`
 typecheck → unit tests → Playwright e2e → build → D1 migrations → deploy →
 authenticated smoke test on every push to `main`.
 
-Two guards worth calling out, both asserted by the post-deploy smoke test:
+Access is three applications on the one hostname: a host-wide **gated** app
+(owner email + MCP service token), plus two **bypass** apps on more-specific
+paths that therefore win — `/p/*` for public share pages and `/assets/*` for the
+SPA bundle. The `/assets` bypass is load-bearing: without it the share page's
+HTML loads but its JS 302s to the login and the page renders blank. The bundle
+holds no secrets (all data goes through the gated `/api` and `/img`), so serving
+it publicly is safe.
+
+Three guards worth calling out, all asserted by the post-deploy smoke test:
 
 - **`workers_dev = false`.** A `workers.dev` URL would serve the same app on a
   hostname Access cannot protect — a complete bypass of the login wall. It is
   pinned off rather than left to wrangler's default.
 - **`/api/*` must not answer anonymously.** The smoke test fails the deploy if an
   unauthenticated request to `/api/collections` ever returns 200.
+- **`/assets/*` must stay public.** The smoke test fails the deploy if a request
+  for an asset redirects to the Access login — the regression that turns every
+  public share link into a white page.
 
 The custom domain is bound by `scripts/attach-domain.mjs` rather than declared in
 `wrangler.toml`, because wrangler reconciles routes through the zone-scoped

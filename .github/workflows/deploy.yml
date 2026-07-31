@@ -105,6 +105,18 @@ jobs:
             exit 1
           fi
 
+          echo "-- static assets must be public, or the share-link SPA is a white page"
+          # The /p/* shell is bypassed, but it loads its JS/CSS from /assets/*.
+          # If those get gated by Access, an anonymous visitor gets the HTML but
+          # the bundle 302s to the login and the app never boots. A missing asset
+          # should hit the Worker (404/200), never redirect to the Access login.
+          assets_redirect=$(curl -sS -o /dev/null -w '%{redirect_url}' "https://kiekie.example/assets/probe-$RANDOM.js")
+          echo "assets redirect target: ${assets_redirect:-<none>}"
+          if printf '%s' "$assets_redirect" | grep -q 'cloudflareaccess.com'; then
+            echo "FAIL: /assets/* is behind Access — public share links will render blank"
+            exit 1
+          fi
+
           echo "-- workers.dev must stay disabled (it cannot be Access-protected)"
           dev=$(curl -sS -o /dev/null -w '%{http_code}' https://kiekie.example.workers.dev/health || true)
           echo "workers.dev status: $dev"

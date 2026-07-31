@@ -87,6 +87,13 @@ Cloudflare setup, as provisioned:
   so `/p/*` skips the login wall. It's a more specific path, so it wins over the
   gated app. Everything else on the hostname stays behind Access, and the Worker
   validates the share token itself.
+- **Access app `kiekie static assets`** on `kiekie.example/assets` — a Bypass policy.
+  This is **required**, not optional: the public share page's HTML is bypassed
+  under `/p`, but it loads its JS/CSS from `/assets/*`. If those stay gated, an
+  anonymous visitor gets the shell but the bundle 302s to the login and the page
+  renders blank. The compiled SPA bundle carries no secrets — all data access is
+  still through the gated `/api` and `/img` — so exposing it is safe. The deploy
+  smoke test asserts `/assets/*` is not behind Access.
 - **`workers_dev = false`** — pinned off deliberately. A `workers.dev` URL would
   serve the same app on a hostname Access cannot protect, bypassing the login
   wall entirely. The deploy smoke test asserts it stays disabled.
@@ -100,8 +107,12 @@ cp .env.example .env.local          # fill in CLOUDFLARE_API_TOKEN
 npx wrangler d1 create kiekie       # paste database_id into worker/wrangler.toml
 npx wrangler r2 bucket create kiekie-screenshots
 npm run attach:domain your-host.example
-# create the Access apps + service token, then put the team domain and the
-# gated app's AUD tag into [env.production.vars] in worker/wrangler.toml
+# Access apps to create (Zero Trust > Access > Applications):
+#   1. gated app on the whole host   -> Allow (your email) + service token
+#   2. bypass app on <host>/p        -> Bypass everyone   (public share links)
+#   3. bypass app on <host>/assets   -> Bypass everyone   (SPA bundle; else blank)
+# then put the team domain and the gated app's AUD tag into
+# [env.production.vars] in worker/wrangler.toml
 npm run deploy
 ```
 
