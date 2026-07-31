@@ -170,7 +170,15 @@ coordinates mean the comment is about the whole image.
   Access bypass and 302 to the login on share pages.
 - Layout is fluid from ~360px up: the viewer's comment rail sits beside the
   image on desktop and stacks below it on a phone, and the share-links table
-  becomes labelled cards under 720px.
+  becomes labelled cards under 720px. The top bar is one non-wrapping line —
+  the identity chip is the only element allowed to shrink, and it drops to a
+  monogram (with the address in its tooltip) rather than pushing the bar wide.
+- Creating a collection, uploading a screenshot and minting a share link are
+  each a prominent button that opens a modal. The modals are the native
+  `<dialog>` element via `showModal()`, so the focus trap, inert background and
+  Escape-to-close come from the browser rather than from hand-written a11y code.
+  Notably, the share expiry is asked for *inside* the dialog: opening it mints
+  nothing, so an idle click can never leak a public URL.
 - Collections ordered by most recent activity, each with its description and count.
 - Inside a collection, screenshots bucket into **Today · Last 3 days · Last week ·
   Last month · Older**, computed in the viewer's own timezone.
@@ -187,7 +195,7 @@ coordinates mean the comment is about the whole image.
 ```bash
 npm run typecheck   # all three workspaces
 npm test            # 85 Worker tests (real D1 + R2 in Miniflare) + 30 MCP tests
-npm run test:e2e    # 20 Playwright specs against a real local Worker
+npm run test:e2e    # 22 Playwright specs against a real local Worker
 ```
 
 The e2e run builds the SPA, builds the MCP server, applies migrations to an

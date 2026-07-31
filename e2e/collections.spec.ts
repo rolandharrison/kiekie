@@ -9,6 +9,23 @@ test('creates a collection with a description and shows it in the list', async (
   await expect(page.getByTestId(`collection-count-${cid}`)).toHaveText('0');
 });
 
+test('keeps the create form in a dialog rather than on the page', async ({ page }) => {
+  await page.goto('/');
+  // Nothing to fill in until you ask for it.
+  await expect(page.getByTestId('new-collection-form')).toHaveCount(0);
+
+  await page.getByTestId('new-collection').click();
+  await expect(page.getByTestId('new-collection-form')).toBeVisible();
+
+  // Escape closes a native <dialog>, and the form goes with it.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('new-collection-form')).toHaveCount(0);
+
+  // Reopening starts blank rather than keeping the abandoned draft.
+  await page.getByTestId('new-collection').click();
+  await expect(page.getByTestId('collection-name')).toHaveValue('');
+});
+
 test('orders collections by most recent activity', async ({ page }) => {
   const older = await createCollection(page, unique('Older'), 'first');
   const newer = await createCollection(page, unique('Newer'), 'second');

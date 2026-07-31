@@ -65,10 +65,15 @@ function TopBar({ route }: { route: string }) {
         Share links
       </a>
       <div class="spacer" />
-      <span class="who" data-testid="identity">
+      {/* The email is the only identity we have, and it can be long. It is
+          shown in full when there is room, collapses to a monogram when there
+          isn't, and carries the full address in the tooltip either way. */}
+      <span class="who" data-testid="identity" title={who ?? undefined}>
         {who ? (
           <>
-            <span class="dot" />
+            <span class="avatar" aria-hidden="true">
+              {who.trim().charAt(0).toUpperCase()}
+            </span>
             <span class="name">{who}</span>
           </>
         ) : (

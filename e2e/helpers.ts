@@ -15,6 +15,7 @@ export function unique(prefix: string) {
 
 export async function createCollection(page: Page, name: string, description: string) {
   await page.goto('/');
+  await page.getByTestId('new-collection').click();
   await page.getByTestId('collection-name').fill(name);
   await page.getByTestId('collection-description').fill(description);
   await page.getByTestId('create-collection').click();
@@ -31,11 +32,24 @@ export async function openCollection(page: Page, cid: string) {
 export async function uploadScreenshot(page: Page, cid: string, fixture = FIXTURE_A) {
   await openCollection(page, cid);
   const before = await page.locator('[data-testid^="screenshot-"]').count();
+  await page.getByTestId('upload-screenshot').click();
   await page.getByTestId('upload-input').setInputFiles(fixture);
   await page.getByTestId('upload-submit').click();
   await expect(page.locator('[data-testid^="screenshot-"]')).toHaveCount(before + 1);
   const tile = page.locator('[data-testid^="screenshot-"]').first();
   return (await tile.getAttribute('data-testid'))!.replace('screenshot-', '');
+}
+
+/**
+ * Drives the share dialog end to end: open it, choose an expiry, mint the link.
+ * Returns the URL, and leaves the dialog open so the caller can assert on it.
+ */
+export async function mintShareLink(page: Page, testId: string, days?: '1' | '7' | '30') {
+  await page.getByTestId(testId).click();
+  if (days) await page.getByTestId(`${testId}-expiry`).selectOption(days);
+  await page.getByTestId(`${testId}-create`).click();
+  const url = await page.getByTestId(`${testId}-url`).textContent();
+  return url!;
 }
 
 /** Click at a fraction of the annotator's box — how a user drops a pin. */

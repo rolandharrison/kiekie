@@ -3,10 +3,12 @@ import { api, type Collection } from '../api';
 import { navigate } from '../router';
 import { formatTimestamp } from '../buckets';
 import { ShareButton } from '../components/ShareButton';
+import { Dialog } from '../components/Dialog';
 import { IconPlus } from '../components/icons';
 
 export function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[] | null>(null);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,13 +24,19 @@ export function CollectionsPage() {
     refresh().catch((e) => setError(e.message));
   }, []);
 
+  function openCreate() {
+    setName('');
+    setDescription('');
+    setError(null);
+    setCreating(true);
+  }
+
   async function create(event: Event) {
     event.preventDefault();
     setError(null);
     try {
       await api.createCollection(name.trim(), description.trim());
-      setName('');
-      setDescription('');
+      setCreating(false);
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -42,40 +50,61 @@ export function CollectionsPage() {
           <h1>Collections</h1>
           <p class="subtle">Most recently updated first.</p>
         </div>
+        <div class="actions">
+          <button class="primary" data-testid="new-collection" onClick={openCreate}>
+            <IconPlus />
+            New collection
+          </button>
+        </div>
       </div>
 
-      {error && (
+      {error && !creating && (
         <p class="notice error" data-testid="error" style="margin-bottom:16px">
           {error}
         </p>
       )}
 
-      <form class="card panel" onSubmit={create} data-testid="new-collection-form">
-        <div class="row">
-          <input
-            type="text"
-            placeholder="Collection name"
-            aria-label="Collection name"
-            data-testid="collection-name"
-            value={name}
-            onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            style="flex:1;min-width:180px"
-          />
-          <input
-            type="text"
-            placeholder="What is this collection for?"
-            aria-label="Collection description"
-            data-testid="collection-description"
-            value={description}
-            onInput={(e) => setDescription((e.target as HTMLInputElement).value)}
-            style="flex:2;min-width:220px"
-          />
-          <button class="primary" type="submit" data-testid="create-collection" disabled={!name.trim()}>
-            <IconPlus />
-            Create
-          </button>
-        </div>
-      </form>
+      {creating && (
+        <Dialog
+          title="New collection"
+          description="A collection groups related screenshots. The description tells other agents what it is for."
+          onClose={() => setCreating(false)}
+          testId="new-collection-dialog"
+        >
+          <form class="stack" onSubmit={create} data-testid="new-collection-form">
+            {error && <p class="notice error">{error}</p>}
+            <label class="field">
+              <span class="field-label">Name</span>
+              <input
+                type="text"
+                placeholder="Checkout redesign"
+                data-testid="collection-name"
+                value={name}
+                autofocus
+                onInput={(e) => setName((e.target as HTMLInputElement).value)}
+              />
+            </label>
+            <label class="field">
+              <span class="field-label">Description</span>
+              <input
+                type="text"
+                placeholder="What is this collection for?"
+                data-testid="collection-description"
+                value={description}
+                onInput={(e) => setDescription((e.target as HTMLInputElement).value)}
+              />
+            </label>
+            <div class="dialog-actions">
+              <button type="button" onClick={() => setCreating(false)}>
+                Cancel
+              </button>
+              <button class="primary" type="submit" data-testid="create-collection" disabled={!name.trim()}>
+                Create collection
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
 
       {collections === null ? (
         <p class="subtle" style="margin-top:20px">
@@ -83,7 +112,11 @@ export function CollectionsPage() {
         </p>
       ) : collections.length === 0 ? (
         <div class="empty" style="margin-top:20px" data-testid="no-collections">
-          No collections yet — create one above.
+          <p style="margin:0 0 14px">No collections yet.</p>
+          <button class="primary" onClick={openCreate}>
+            <IconPlus />
+            New collection
+          </button>
         </div>
       ) : (
         <div class="collection-list" data-testid="collection-list">
@@ -142,35 +175,34 @@ export function CollectionsPage() {
                 )}
               </div>
 
-              <div class="stack" style="align-items:flex-end;gap:8px">
-                <div class="row">
-                  <button
-                    class="small"
-                    data-testid={`edit-collection-${c.id}`}
-                    onClick={() => {
-                      setEditing(c.id);
-                      setEditName(c.name);
-                      setEditDescription(c.description ?? '');
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    class="small danger"
-                    data-testid={`delete-collection-${c.id}`}
-                    onClick={async () => {
-                      if (!confirm(`Delete "${c.name}" and all of its screenshots?`)) return;
-                      await api.deleteCollection(c.id);
-                      await refresh();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+              <div class="row card-actions">
                 <ShareButton
                   testId={`share-collection-${c.id}`}
+                  subject={`“${c.name}” and its screenshots`}
                   onShare={(days) => api.shareCollection(c.id, days)}
                 />
+                <button
+                  class="small"
+                  data-testid={`edit-collection-${c.id}`}
+                  onClick={() => {
+                    setEditing(c.id);
+                    setEditName(c.name);
+                    setEditDescription(c.description ?? '');
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  class="small danger"
+                  data-testid={`delete-collection-${c.id}`}
+                  onClick={async () => {
+                    if (!confirm(`Delete "${c.name}" and all of its screenshots?`)) return;
+                    await api.deleteCollection(c.id);
+                    await refresh();
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}

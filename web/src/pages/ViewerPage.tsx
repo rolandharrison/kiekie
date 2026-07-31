@@ -102,7 +102,12 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
           </p>
         </div>
         <div class="actions">
-          <ShareButton testId="share-screenshot" onShare={(days) => api.shareScreenshot(sid, days)} />
+          <ShareButton
+            testId="share-screenshot"
+            variant="primary"
+            subject="this screenshot and its comments"
+            onShare={(days) => api.shareScreenshot(sid, days)}
+          />
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { api, imageUrl, type Collection, type Screenshot } from '../api';
 import { formatTimestamp, groupByBucket } from '../buckets';
 import { navigate } from '../router';
 import { ShareButton } from '../components/ShareButton';
+import { Dialog } from '../components/Dialog';
 import { IconArrowLeft, IconUpload } from '../components/icons';
 
 export function CollectionPage({ cid }: { cid: string }) {
@@ -10,6 +11,8 @@ export function CollectionPage({ cid }: { cid: string }) {
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
@@ -32,12 +35,20 @@ export function CollectionPage({ cid }: { cid: string }) {
     try {
       await api.upload(cid, file);
       if (fileRef.current) fileRef.current.value = '';
+      setChosen(null);
+      setPicking(false);
       await refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setUploading(false);
     }
+  }
+
+  function openUpload() {
+    setChosen(null);
+    setError(null);
+    setPicking(true);
   }
 
   if (error) {
@@ -89,28 +100,62 @@ export function CollectionPage({ cid }: { cid: string }) {
           </p>
         </div>
         <div class="actions">
-          <ShareButton testId="share-collection" onShare={(days) => api.shareCollection(cid, days)} />
+          <ShareButton
+            testId="share-collection"
+            subject={`“${collection.name}” and its screenshots`}
+            onShare={(days) => api.shareCollection(cid, days)}
+          />
+          <button class="primary" data-testid="upload-screenshot" onClick={openUpload}>
+            <IconUpload />
+            Upload screenshot
+          </button>
         </div>
       </div>
 
-      <form class="card panel row" onSubmit={upload} data-testid="upload-form">
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileRef}
-          aria-label="Screenshot file"
-          data-testid="upload-input"
-          style="flex:1;min-width:180px"
-        />
-        <button class="primary" type="submit" data-testid="upload-submit" disabled={uploading}>
-          <IconUpload />
-          {uploading ? 'Uploading…' : 'Upload screenshot'}
-        </button>
-      </form>
+      {picking && (
+        <Dialog
+          title="Upload a screenshot"
+          description="Pick an image from this device. Agents add screenshots through the MCP server instead."
+          onClose={() => setPicking(false)}
+          testId="upload-dialog"
+        >
+          <form class="stack" onSubmit={upload} data-testid="upload-form">
+            {error && <p class="notice error">{error}</p>}
+            <label class="field">
+              <span class="field-label">Image file</span>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileRef}
+                data-testid="upload-input"
+                onChange={(e) => setChosen((e.target as HTMLInputElement).files?.[0]?.name ?? null)}
+              />
+            </label>
+            <div class="dialog-actions">
+              <button type="button" onClick={() => setPicking(false)}>
+                Cancel
+              </button>
+              <button
+                class="primary"
+                type="submit"
+                data-testid="upload-submit"
+                disabled={uploading || !chosen}
+              >
+                <IconUpload />
+                {uploading ? 'Uploading…' : 'Upload'}
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
 
       {screenshots.length === 0 ? (
         <div class="empty" style="margin-top:24px" data-testid="no-screenshots">
-          No screenshots in this collection yet.
+          <p style="margin:0 0 14px">No screenshots in this collection yet.</p>
+          <button class="primary" onClick={openUpload}>
+            <IconUpload />
+            Upload screenshot
+          </button>
         </div>
       ) : (
         buckets.map((bucket) => (

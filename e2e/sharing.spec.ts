@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCollection, unique, uploadScreenshot } from './helpers';
+import { createCollection, mintShareLink, unique, uploadScreenshot } from './helpers';
 
 test('shares a collection publicly, then revokes it', async ({ page, browser }) => {
   const name = unique('Client review');
@@ -12,10 +12,9 @@ test('shares a collection publicly, then revokes it', async ({ page, browser }) 
   await expect(page.getByTestId('comment-count')).toHaveText('1');
 
   await page.goto(`/c/${cid}`);
-  await page.getByTestId('share-collection').click();
-  const shareUrl = await page.getByTestId('share-collection-url').textContent();
+  const shareUrl = await mintShareLink(page, 'share-collection');
   expect(shareUrl).toMatch(/\/p\/[A-Za-z0-9_-]{21}$/);
-  const token = shareUrl!.split('/p/')[1];
+  const token = shareUrl.split('/p/')[1];
 
   // A completely separate browser context — no cookies, no session, no login.
   const visitor = await browser.newContext();
@@ -63,6 +62,27 @@ test('shares a collection publicly, then revokes it', async ({ page, browser }) 
   await visitor.close();
 });
 
+test('asks for the expiry in a dialog, not inline on the page', async ({ page }) => {
+  const cid = await createCollection(page, unique('Dialog'), 'share dialog');
+  await page.goto(`/c/${cid}`);
+
+  // The expiry choice only exists once you have decided to share.
+  await expect(page.getByTestId('share-collection-expiry')).toHaveCount(0);
+
+  await page.getByTestId('share-collection').click();
+  await expect(page.getByTestId('share-collection-expiry')).toBeVisible();
+
+  // Backing out mints nothing — opening the dialog must not be what creates
+  // the link, or every idle click would leak a public URL.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('share-collection-expiry')).toHaveCount(0);
+
+  const links = await page.evaluate(() =>
+    fetch('/api/share-links').then((r) => r.json()),
+  );
+  expect(links.links.some((l: any) => l.target_id === cid)).toBe(false);
+});
+
 test('shares a single screenshot without exposing its siblings', async ({ page, browser }) => {
   const cid = await createCollection(page, unique('Mixed'), 'one shared, one not');
   const shared = await uploadScreenshot(page, cid);
@@ -70,8 +90,7 @@ test('shares a single screenshot without exposing its siblings', async ({ page, 
   expect(secret).not.toBe(shared);
 
   await page.goto(`/c/${cid}/s/${shared}`);
-  await page.getByTestId('share-screenshot').click();
-  const shareUrl = (await page.getByTestId('share-screenshot-url').textContent())!;
+  const shareUrl = await mintShareLink(page, 'share-screenshot');
   const token = shareUrl.split('/p/')[1];
 
   const visitor = await browser.newContext();
@@ -95,12 +114,10 @@ test('shares with an expiry date and shows it on the share-links page', async ({
   await uploadScreenshot(page, cid);
 
   await page.goto(`/c/${cid}`);
-  await page.getByTestId('share-collection-expiry').selectOption('7');
-  await page.getByTestId('share-collection').click();
+  const shareUrl = await mintShareLink(page, 'share-collection', '7');
 
-  // The button confirms the deadline rather than silently minting a forever link.
+  // The dialog confirms the deadline rather than silently minting a forever link.
   await expect(page.getByTestId('share-collection-expiry-note')).toContainText('Expires');
-  const shareUrl = (await page.getByTestId('share-collection-url').textContent())!;
   const token = shareUrl.split('/p/')[1];
 
   // A dated link still works right now.
@@ -125,10 +142,10 @@ test('shares with an expiry date and shows it on the share-links page', async ({
 test('defaults to a link that never expires', async ({ page }) => {
   const cid = await createCollection(page, unique('Permanent'), 'no deadline');
   await page.goto(`/c/${cid}`);
-  await page.getByTestId('share-collection').click();
+  const shareUrl = await mintShareLink(page, 'share-collection');
 
   await expect(page.getByTestId('share-collection-expiry-note')).toHaveText('Never expires');
-  const token = (await page.getByTestId('share-collection-url').textContent())!.split('/p/')[1];
+  const token = shareUrl.split('/p/')[1];
 
   await page.goto('/shares');
   await expect(page.getByTestId(`share-expiry-${token}`)).toHaveText('Never');
@@ -137,8 +154,7 @@ test('defaults to a link that never expires', async ({ page }) => {
 test('lists active share links with their target', async ({ page }) => {
   const name = unique('Listed');
   const cid = await createCollection(page, name, 'share listing');
-  await page.getByTestId(`share-collection-${cid}`).click();
-  const url = (await page.getByTestId(`share-collection-${cid}-url`).textContent())!;
+  const url = await mintShareLink(page, `share-collection-${cid}`);
   const token = url.split('/p/')[1];
 
   await page.goto('/shares');
