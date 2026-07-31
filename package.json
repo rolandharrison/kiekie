@@ -1,0 +1,25 @@
+{
+  "name": "kiekie",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Screenshot collection & annotation system — Cloudflare Worker + local MCP server",
+  "workspaces": [
+    "worker",
+    "web",
+    "mcp"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace web && npm run build --workspace mcp",
+    "dev": "npm run dev --workspace worker",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "e2e:server": "npm run build --workspace web && npm run build --workspace mcp && npm run e2e:migrate --workspace worker && npm run e2e:dev --workspace worker",
+    "migrate:local": "npm run migrate:local --workspace worker"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

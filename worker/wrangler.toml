@@ -1,0 +1,30 @@
+name = "kiekie"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kiekie"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "kiekie-screenshots"
+
+[vars]
+# Public base URL used when minting share/collection links. Left empty so links
+# adopt the origin the request actually arrived on — set it explicitly only if the
+# Worker is reached on a different hostname than the one users should see.
+WEB_BASE = ""
+# In production set this to "1" — Cloudflare Access sits in front and its headers
+# can be trusted. Leave unset locally so DEV_IDENTITY is used instead.
+TRUST_ACCESS_HEADERS = ""
+# Local-only stub identity so the app is usable without a Zero Trust tenant.
+DEV_IDENTITY = "dev@localhost"

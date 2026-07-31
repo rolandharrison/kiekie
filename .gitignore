@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.wrangler/
+.e2e-state/
+worker/public/
+.dev.vars
+.env
+test-results/
+playwright-report/
+blob-report/
+*.log
+.DS_Store
