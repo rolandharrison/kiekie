@@ -42,7 +42,16 @@ export interface ShareLink {
   target_label: string | null;
   created_by: string | null;
   created_at: string;
+  /** null = never expires. */
+  expires_at: string | null;
+  expired: boolean;
   url: string;
+}
+
+export interface MintedShare {
+  token: string;
+  url: string;
+  expires_at: string | null;
 }
 
 export class ApiError extends Error {
@@ -122,11 +131,11 @@ export const api = {
   deleteAnnotation: (aid: string) =>
     request<{ ok: true }>(`/api/annotations/${aid}`, { method: 'DELETE' }),
 
-  shareCollection: (cid: string) =>
-    request<{ url: string; token: string }>(`/api/collections/${cid}/share`, { method: 'POST' }),
+  shareCollection: (cid: string, expiresInDays: number | null = null) =>
+    request<MintedShare>(`/api/collections/${cid}/share`, json('POST', { expires_in_days: expiresInDays })),
 
-  shareScreenshot: (sid: string) =>
-    request<{ url: string; token: string }>(`/api/screenshots/${sid}/share`, { method: 'POST' }),
+  shareScreenshot: (sid: string, expiresInDays: number | null = null) =>
+    request<MintedShare>(`/api/screenshots/${sid}/share`, json('POST', { expires_in_days: expiresInDays })),
 
   listShareLinks: () => request<{ links: ShareLink[] }>('/api/share-links').then((r) => r.links),
 

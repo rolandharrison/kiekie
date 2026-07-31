@@ -3,6 +3,7 @@ import type { AppEnv } from '../env';
 import {
   getCollection,
   getScreenshot,
+  hasExpired,
   listAnnotations,
   shapeAnnotation,
   type ScreenshotRow,
@@ -18,15 +19,29 @@ import { appShell } from '../assets';
  */
 export const publicRoutes = new Hono<AppEnv>();
 
-async function resolveToken(c: { env: AppEnv['Bindings'] }, token: string) {
-  return c.env.DB.prepare('SELECT * FROM share_links WHERE token = ? AND revoked = 0')
+type Resolved =
+  | { ok: true; link: ShareLinkRow }
+  | { ok: false; error: string };
+
+/**
+ * A dead link is reported as dead either way, but expiry and revocation get
+ * different wording — "this expired" is actionable for the person holding the
+ * URL in a way that "not found" isn't.
+ */
+async function resolveToken(c: { env: AppEnv['Bindings'] }, token: string): Promise<Resolved> {
+  const link = await c.env.DB.prepare('SELECT * FROM share_links WHERE token = ?')
     .bind(token)
     .first<ShareLinkRow>();
+
+  if (!link || link.revoked) return { ok: false, error: 'link not found or revoked' };
+  if (hasExpired(link.expires_at)) return { ok: false, error: 'this share link has expired' };
+  return { ok: true, link };
 }
 
 publicRoutes.get('/:token/data', async (c) => {
-  const link = await resolveToken(c, c.req.param('token'));
-  if (!link) return c.json({ error: 'link not found or revoked' }, 404);
+  const resolved = await resolveToken(c, c.req.param('token'));
+  if (!resolved.ok) return c.json({ error: resolved.error }, 404);
+  const link = resolved.link;
 
   if (link.kind === 'collection') {
     const collection = await getCollection(c.env.DB, link.target_id);
@@ -58,8 +73,9 @@ publicRoutes.get('/:token/data', async (c) => {
 });
 
 publicRoutes.get('/:token/img/:key{.+}', async (c) => {
-  const link = await resolveToken(c, c.req.param('token'));
-  if (!link) return c.json({ error: 'link not found or revoked' }, 404);
+  const resolved = await resolveToken(c, c.req.param('token'));
+  if (!resolved.ok) return c.json({ error: resolved.error }, 404);
+  const link = resolved.link;
 
   const key = c.req.param('key');
   // Scope check: the requested key must belong to this link's target. Without
@@ -79,11 +95,11 @@ publicRoutes.get('/:token/img/:key{.+}', async (c) => {
 
 /** The viewer page itself — the SPA shell; the SPA fetches `/p/:token/data`. */
 publicRoutes.get('/:token', async (c) => {
-  const link = await resolveToken(c, c.req.param('token'));
-  return appShell(c, link ? 200 : 404);
+  const resolved = await resolveToken(c, c.req.param('token'));
+  return appShell(c, resolved.ok ? 200 : 404);
 });
 
 publicRoutes.get('/:token/s/:sid', async (c) => {
-  const link = await resolveToken(c, c.req.param('token'));
-  return appShell(c, link ? 200 : 404);
+  const resolved = await resolveToken(c, c.req.param('token'));
+  return appShell(c, resolved.ok ? 200 : 404);
 });

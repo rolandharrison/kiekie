@@ -17,7 +17,10 @@ export function SharesPage() {
   return (
     <main>
       <h1>Share links</h1>
-      <p class="subtle">Anyone with one of these URLs can view — read only, no login.</p>
+      <p class="subtle">
+        Anyone with one of these URLs can view — read only, no login. Expired links stay listed
+        until you revoke them, so you can see what you shared.
+      </p>
 
       {error && <p class="notice error">{error}</p>}
 
@@ -36,12 +39,13 @@ export function SharesPage() {
               <th>Link</th>
               <th>Created by</th>
               <th>Created</th>
+              <th>Expires</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {links.map((l) => (
-              <tr key={l.token} data-testid={`share-row-${l.token}`}>
+              <tr key={l.token} data-testid={`share-row-${l.token}`} data-expired={l.expired ? 'true' : 'false'}>
                 <td>{l.target_label ?? l.target_id}</td>
                 <td>{l.kind}</td>
                 <td>
@@ -51,6 +55,15 @@ export function SharesPage() {
                 </td>
                 <td class="subtle">{l.created_by ?? '—'}</td>
                 <td class="subtle">{formatTimestamp(l.created_at)}</td>
+                <td class="subtle" data-testid={`share-expiry-${l.token}`}>
+                  {l.expires_at === null ? (
+                    'Never'
+                  ) : l.expired ? (
+                    <span class="expired-tag">Expired {formatTimestamp(l.expires_at)}</span>
+                  ) : (
+                    formatTimestamp(l.expires_at)
+                  )}
+                </td>
                 <td>
                   <button
                     class="small danger"

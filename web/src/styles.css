@@ -167,6 +167,9 @@ textarea { min-height: 68px; resize: vertical; }
 .share-row { display: flex; gap: 10px; align-items: center; }
 .share-row code { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+tr[data-expired='true'] td:not(:last-child) { opacity: 0.55; }
+.expired-tag { color: var(--danger); }
+
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
 th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }

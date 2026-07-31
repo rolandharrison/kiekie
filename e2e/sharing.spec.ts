@@ -89,6 +89,51 @@ test('shares a single screenshot without exposing its siblings', async ({ page, 
   await visitor.close();
 });
 
+test('shares with an expiry date and shows it on the share-links page', async ({ page, browser }) => {
+  const name = unique('Timeboxed');
+  const cid = await createCollection(page, name, 'expires soon');
+  await uploadScreenshot(page, cid);
+
+  await page.goto(`/c/${cid}`);
+  await page.getByTestId('share-collection-expiry').selectOption('7');
+  await page.getByTestId('share-collection').click();
+
+  // The button confirms the deadline rather than silently minting a forever link.
+  await expect(page.getByTestId('share-collection-expiry-note')).toContainText('Expires');
+  const shareUrl = (await page.getByTestId('share-collection-url').textContent())!;
+  const token = shareUrl.split('/p/')[1];
+
+  // A dated link still works right now.
+  const visitor = await browser.newContext();
+  const guest = await visitor.newPage();
+  await guest.goto(shareUrl);
+  await expect(guest.getByTestId('public-title')).toHaveText(name);
+  await visitor.close();
+
+  await page.goto('/shares');
+  const expiry = page.getByTestId(`share-expiry-${token}`);
+  await expect(expiry).not.toHaveText('Never');
+  await expect(page.getByTestId(`share-row-${token}`)).toHaveAttribute('data-expired', 'false');
+
+  // Roughly a week out, not some default.
+  const shown = Date.parse((await expiry.textContent())!);
+  const daysOut = (shown - Date.now()) / 86_400_000;
+  expect(daysOut).toBeGreaterThan(6);
+  expect(daysOut).toBeLessThan(8);
+});
+
+test('defaults to a link that never expires', async ({ page }) => {
+  const cid = await createCollection(page, unique('Permanent'), 'no deadline');
+  await page.goto(`/c/${cid}`);
+  await page.getByTestId('share-collection').click();
+
+  await expect(page.getByTestId('share-collection-expiry-note')).toHaveText('Never expires');
+  const token = (await page.getByTestId('share-collection-url').textContent())!.split('/p/')[1];
+
+  await page.goto('/shares');
+  await expect(page.getByTestId(`share-expiry-${token}`)).toHaveText('Never');
+});
+
 test('lists active share links with their target', async ({ page }) => {
   const name = unique('Listed');
   const cid = await createCollection(page, name, 'share listing');

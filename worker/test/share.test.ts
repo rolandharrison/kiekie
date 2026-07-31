@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { env } from 'cloudflare:test';
 import { api, call, createCollection, pngBytes, postJson, uploadScreenshot, useDatabase } from './helpers';
 
 useDatabase();
@@ -46,6 +47,134 @@ describe('share links', () => {
     expect((await api(`/api/share-links/${body.token}`, { method: 'DELETE' })).status).toBe(200);
     expect((await api('/api/share-links')).body.links).toHaveLength(0);
     expect((await api(`/api/share-links/${body.token}`, { method: 'DELETE' })).status).toBe(404);
+  });
+});
+
+/** Backdate a link's expiry so "expired" is testable without waiting. */
+async function expire(token: string) {
+  await env.DB.prepare('UPDATE share_links SET expires_at = ? WHERE token = ?')
+    .bind('2000-01-01 00:00:00.000', token)
+    .run();
+}
+
+describe('share link expiry', () => {
+  it('defaults to never expiring', async () => {
+    const col = await createCollection();
+    const { body } = await api(`/api/collections/${col.id}/share`, { method: 'POST' });
+    expect(body.expires_at).toBeNull();
+
+    const { body: list } = await api('/api/share-links');
+    expect(list.links[0].expires_at).toBeNull();
+    expect(list.links[0].expired).toBe(false);
+  });
+
+  it('mints a link with an expiry a given number of days out', async () => {
+    const col = await createCollection();
+    const { status, body } = await api(
+      `/api/collections/${col.id}/share`,
+      postJson({ expires_in_days: 7 }),
+    );
+
+    expect(status).toBe(201);
+    expect(body.expires_at).not.toBeNull();
+    const days = (Date.parse(`${body.expires_at}Z`) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+  });
+
+  it.each([
+    [{ expires_in_days: 0 }, /greater than 0/],
+    [{ expires_in_days: -3 }, /greater than 0/],
+    [{ expires_in_days: 99999 }, /at most 3650/],
+    [{ expires_in_days: 'soon' }, /must be a number or null/],
+  ])('rejects invalid expiry %j', async (payload, expected) => {
+    const col = await createCollection();
+    const { status, body } = await api(`/api/collections/${col.id}/share`, postJson(payload));
+    expect(status).toBe(400);
+    expect(body.error).toMatch(expected);
+  });
+
+  it('leaves an existing expiry alone when none is requested', async () => {
+    const col = await createCollection();
+    const first = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 5 }));
+
+    const second = await api(`/api/collections/${col.id}/share`, { method: 'POST' });
+    expect(second.body.token).toBe(first.body.token);
+    expect(second.body.expires_at).toBe(first.body.expires_at);
+  });
+
+  it('extends and clears the expiry of an existing link', async () => {
+    const col = await createCollection();
+    const first = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 1 }));
+
+    const extended = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 30 }));
+    expect(extended.body.token).toBe(first.body.token);
+    expect(extended.body.expires_at! > first.body.expires_at!).toBe(true);
+
+    const cleared = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: null }));
+    expect(cleared.body.token).toBe(first.body.token);
+    expect(cleared.body.expires_at).toBeNull();
+  });
+
+  it('mints a fresh token instead of reusing an expired one', async () => {
+    const col = await createCollection();
+    const first = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 1 }));
+    await expire(first.body.token);
+
+    const second = await api(`/api/collections/${col.id}/share`, { method: 'POST' });
+    expect(second.status).toBe(201);
+    expect(second.body.token).not.toBe(first.body.token);
+  });
+
+  it('closes every public route once the link expires', async () => {
+    const col = await createCollection();
+    const shot = await uploadScreenshot(col.id);
+    const { body: link } = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 1 }));
+
+    expect((await api(`/p/${link.token}/data`)).status).toBe(200);
+    await expire(link.token);
+
+    const data = await api(`/p/${link.token}/data`);
+    expect(data.status).toBe(404);
+    expect(data.body.error).toMatch(/expired/);
+    expect((await call(`/p/${link.token}`)).status).toBe(404);
+    expect((await call(`/p/${link.token}/img/${shot.r2_key}`)).status).toBe(404);
+  });
+
+  it('distinguishes an expired link from a revoked one', async () => {
+    const col = await createCollection();
+    const expired = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 1 }));
+    await expire(expired.body.token);
+
+    const other = await createCollection('Other', null);
+    const revoked = await api(`/api/collections/${other.id}/share`, { method: 'POST' });
+    await api(`/api/share-links/${revoked.body.token}`, { method: 'DELETE' });
+
+    expect((await api(`/p/${expired.body.token}/data`)).body.error).toMatch(/expired/);
+    expect((await api(`/p/${revoked.body.token}/data`)).body.error).toMatch(/not found or revoked/);
+  });
+
+  it('keeps expired links listed but flagged, and still revocable', async () => {
+    const col = await createCollection();
+    const { body: link } = await api(`/api/collections/${col.id}/share`, postJson({ expires_in_days: 1 }));
+    await expire(link.token);
+
+    const listed = await api('/api/share-links');
+    expect(listed.body.links).toHaveLength(1);
+    expect(listed.body.links[0].expired).toBe(true);
+
+    expect((await api(`/api/share-links/${link.token}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await api('/api/share-links')).body.links).toHaveLength(0);
+  });
+
+  it('accepts an expiry on screenshot links too', async () => {
+    const col = await createCollection();
+    const shot = await uploadScreenshot(col.id);
+    const { body } = await api(`/api/screenshots/${shot.id}/share`, postJson({ expires_in_days: 2 }));
+    expect(body.expires_at).not.toBeNull();
+
+    await expire(body.token);
+    expect((await api(`/p/${body.token}/data`)).status).toBe(404);
   });
 });
 

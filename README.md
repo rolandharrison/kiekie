@@ -119,15 +119,17 @@ coordinates mean the comment is about the whole image.
 - Click an image to drop a pin, drag to mark a region, or comment on the whole
   image. Comments show the author (from the Access email) and can be edited,
   resolved and deleted.
-- Share any collection or screenshot as a revocable read-only `/p/{token}` link;
-  `/shares` lists the live ones.
+- Share any collection or screenshot as a revocable read-only `/p/{token}` link,
+  optionally with an expiry (never / 1 / 7 / 30 days). `/shares` lists them with
+  their deadline; expired links stay listed but flagged, and stop working
+  immediately — page, JSON and image alike.
 
 ## Tests
 
 ```bash
 npm run typecheck   # all three workspaces
-npm test            # 63 Worker tests (real D1 + R2 in Miniflare) + 30 MCP tests
-npm run test:e2e    # 18 Playwright specs against a real local Worker
+npm test            # 76 Worker tests (real D1 + R2 in Miniflare) + 30 MCP tests
+npm run test:e2e    # 20 Playwright specs against a real local Worker
 ```
 
 The e2e run builds the SPA, builds the MCP server, applies migrations to an

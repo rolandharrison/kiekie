@@ -110,9 +110,9 @@ GET    /api/screenshots/:sid/annotations
 POST   /api/screenshots/:sid/annotations     {body, x?, y?, w?, h?}; author = identity
 PATCH  /api/annotations/:aid                 {body?, resolved?}
 DELETE /api/annotations/:aid
-POST   /api/collections/:cid/share           -> {url}
-POST   /api/screenshots/:sid/share           -> {url}
-GET    /api/share-links                      active links w/ target names
+POST   /api/collections/:cid/share           {expires_in_days?} -> {url, expires_at}
+POST   /api/screenshots/:sid/share           {expires_in_days?} -> {url, expires_at}
+GET    /api/share-links                      unrevoked links w/ target names + expired flag
 DELETE /api/share-links/:token               revoke
 GET    /img/:key                             auth'd R2 stream, immutable cache
 GET    /p/:token                             public viewer (SPA shell)
@@ -185,7 +185,8 @@ Three layers, all runnable from `npm test` / `npm run test:e2e`:
    real D1 + R2 in Miniflare. Cover: every endpoint's happy path; auth 401s;
    validation 400s; cascade deletes remove R2 objects; `updated_at` bumping and
    ordering; share-token scoping (a token for collection A cannot read collection
-   B's image); revoked token → 404; public routes reject POST/PATCH/DELETE.
+   B's image); revoked token → 404; expired token → 404 on page, data and image,
+   with expiry distinguished from revocation; public routes reject POST/PATCH/DELETE.
 2. **MCP unit tests** (vitest) — path mapping table (Windows, POSIX, longest-prefix,
    traversal, unmapped-error text), each tool's request shaping against a stubbed
    fetch, and error propagation.
@@ -215,7 +216,24 @@ CI-shaped scripts: `npm run typecheck`, `npm test`, `npm run test:e2e`.
 6. MCP server + pathmap tests + Docker.
 7. README (deploy steps, Access config, MCP registration), commit, push.
 
-## 8. Out of scope for v1 (per `plan.md` §5)
+## 8. Share-link expiry (migration `0002`)
 
-Thumbnail variants / Cloudflare Images, share-link expiry dates, R2 lifecycle
-rules. The schema leaves room for all three without migration pain.
+`share_links.expires_at` is nullable — NULL means "never", which is exactly what
+every pre-existing row meant, so the migration needs no backfill.
+
+- Both share endpoints accept `expires_in_days`, which is tri-state: absent leaves
+  an existing link's deadline untouched, `null` clears it, a positive number
+  (≤ 3650) sets one. That lets the same endpoint mint, extend and un-expire.
+- Reuse only applies to links that are still *live*; an expired link is replaced
+  by a fresh token rather than resurrected.
+- `/p/*` refuses expired links everywhere — page, data and image — and reports
+  "expired" separately from "not found or revoked", because only one of those is
+  actionable for the person holding the URL.
+- `/api/share-links` keeps expired links listed with an `expired` flag rather than
+  hiding them; a link that silently vanished would read as a bug. They stay
+  revocable so the list can be tidied.
+
+## 9. Out of scope for v1 (per `plan.md` §5)
+
+Thumbnail variants / Cloudflare Images and R2 lifecycle rules. The schema leaves
+room for both without migration pain.

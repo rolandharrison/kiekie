@@ -38,6 +38,8 @@ export interface ShareLinkRow {
   created_by: string | null;
   revoked: number;
   created_at: string;
+  /** NULL means the link never expires. */
+  expires_at: string | null;
 }
 
 /**
@@ -47,7 +49,24 @@ export interface ShareLinkRow {
  * the same second (exactly what tests and rapid MCP uploads do).
  */
 export function now(): string {
-  return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  return stamp(new Date());
+}
+
+function stamp(date: Date): string {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+/** A timestamp `days` from now, in the same sortable format as `now()`. */
+export function inDays(days: number): string {
+  return stamp(new Date(Date.now() + days * 86_400_000));
+}
+
+/**
+ * Expiry is compared as a string: every timestamp this app writes uses the same
+ * fixed-width UTC format, so lexicographic order is chronological order.
+ */
+export function hasExpired(expiresAt: string | null, at = now()): boolean {
+  return expiresAt !== null && expiresAt <= at;
 }
 
 export async function getCollection(db: D1Database, id: string) {

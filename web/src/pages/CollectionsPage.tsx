@@ -157,7 +157,10 @@ export function CollectionsPage() {
                     Delete
                   </button>
                 </div>
-                <ShareButton testId={`share-collection-${c.id}`} onShare={() => api.shareCollection(c.id)} />
+                <ShareButton
+                  testId={`share-collection-${c.id}`}
+                  onShare={(days) => api.shareCollection(c.id, days)}
+                />
               </div>
             </div>
           ))}

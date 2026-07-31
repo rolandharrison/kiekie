@@ -79,7 +79,7 @@ export function CollectionPage({ cid }: { cid: string }) {
             {collection.description || 'No description'}
           </p>
         </div>
-        <ShareButton testId="share-collection" onShare={() => api.shareCollection(cid)} />
+        <ShareButton testId="share-collection" onShare={(days) => api.shareCollection(cid, days)} />
       </div>
 
       <form class="card row" style="margin-top:16px" onSubmit={upload} data-testid="upload-form">

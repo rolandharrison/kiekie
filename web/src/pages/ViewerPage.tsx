@@ -99,7 +99,7 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             {screenshot.source_host ? ` · from ${screenshot.source_host}` : ''}
           </p>
         </div>
-        <ShareButton testId="share-screenshot" onShare={() => api.shareScreenshot(sid)} />
+        <ShareButton testId="share-screenshot" onShare={(days) => api.shareScreenshot(sid, days)} />
       </div>
 
       <div class="viewer" style="margin-top:12px">
