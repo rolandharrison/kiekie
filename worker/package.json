@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env production",
     "migrate:local": "wrangler d1 migrations apply kiekie --local",
-    "migrate:remote": "wrangler d1 migrations apply kiekie --remote",
+    "migrate:remote": "wrangler d1 migrations apply kiekie --remote --env production",
     "e2e:migrate": "wrangler d1 migrations apply kiekie --local --persist-to .e2e-state",
     "e2e:dev": "wrangler dev --port 8788 --persist-to .e2e-state",
     "typecheck": "tsc --noEmit",

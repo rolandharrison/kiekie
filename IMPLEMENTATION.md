@@ -74,15 +74,33 @@ One middleware, three caller classes (matching the `plan.md` table):
 
 | Caller | Detection | Identity |
 |---|---|---|
-| Browser behind Access | `Cf-Access-Authenticated-User-Email` header | that email |
-| MCP / machine | `CF-Access-Client-Id` + `CF-Access-Client-Secret` headers | `service:{clientId}` |
+| Browser behind Access | `email` claim in the Access JWT | that email |
+| MCP / machine | `common_name` claim in the Access JWT | `service:{clientId}` |
 | Public share visitor | request path under `/p/*` | none; read-only |
 
-Cloudflare Access validates *before* the request reaches the Worker, so the Worker
-trusts these headers — but only when `TRUST_ACCESS_HEADERS` is on (production).
-For local dev/test, `DEV_IDENTITY` env supplies a stub email so the whole app is
-exercisable without a Zero Trust tenant. Any `/api/*` request with no resolvable
-identity gets `401`.
+`plan.md` proposed trusting the `Cf-Access-Authenticated-User-Email` and
+`CF-Access-Client-*` headers directly. **That does not work, and was replaced by
+JWT verification** (`worker/src/access.ts`) after testing against the real
+deployment:
+
+- Access *consumes* the `CF-Access-Client-Id`/`Secret` headers when it validates a
+  service token — they never reach the Worker — so header-reading fails outright
+  for every machine caller.
+- A plain header is only as trustworthy as the guarantee that every request
+  passed through Access, and that's a deployment property the Worker cannot check.
+
+So the Worker verifies the signed `Cf-Access-Jwt-Assertion` (or `CF_Authorization`
+cookie) against the tenant's JWKS: RS256 pinned (closing the `alg: none` and
+HMAC-confusion families), signature checked, `aud` matched to this specific
+application so a token for another app on the same tenant is rejected, issuer
+matched, `exp`/`nbf` honoured with a small skew. Keys are cached in module scope
+for an hour.
+
+`ACCESS_TEAM_DOMAIN` + `ACCESS_AUD` being set is what puts the Worker in
+production mode. Locally they're unset and `DEV_IDENTITY` supplies a stub caller,
+so the whole app is exercisable without a Zero Trust tenant. Production sets
+`DEV_IDENTITY = ""`, so that fallback cannot fire there — the deployment fails
+closed. Any `/api/*` request with no resolvable identity gets `401`.
 
 `/p/*` is served by a separate router mounted **before** the auth middleware and
 has no write verbs at all — public read-only is enforced by routing, not by UI
@@ -187,6 +205,10 @@ Three layers, all runnable from `npm test` / `npm run test:e2e`:
    ordering; share-token scoping (a token for collection A cannot read collection
    B's image); revoked token → 404; expired token → 404 on page, data and image,
    with expiry distinguished from revocation; public routes reject POST/PATCH/DELETE.
+   Auth is tested against **real RS256 assertions** minted in-test from a generated
+   keypair, with the tenant JWKS stubbed via `fetchMock` — covering tampered
+   signatures, foreign keys, wrong `aud`, wrong issuer, expired, not-yet-valid,
+   `alg: none`, unknown `kid`, and the legacy plaintext headers being ignored.
 2. **MCP unit tests** (vitest) — path mapping table (Windows, POSIX, longest-prefix,
    traversal, unmapped-error text), each tool's request shaping against a stubbed
    fetch, and error propagation.
@@ -233,7 +255,26 @@ every pre-existing row meant, so the migration needs no backfill.
   hiding them; a link that silently vanished would read as a bug. They stay
   revocable so the list can be tidied.
 
-## 9. Out of scope for v1 (per `plan.md` §5)
+## 9. Deployment
+
+Live at `https://kiekie.example`. GitHub Actions (`.github/workflows/deploy.yml`) runs
+typecheck → unit tests → Playwright e2e → build → D1 migrations → deploy →
+authenticated smoke test on every push to `main`.
+
+Two guards worth calling out, both asserted by the post-deploy smoke test:
+
+- **`workers_dev = false`.** A `workers.dev` URL would serve the same app on a
+  hostname Access cannot protect — a complete bypass of the login wall. It is
+  pinned off rather than left to wrangler's default.
+- **`/api/*` must not answer anonymously.** The smoke test fails the deploy if an
+  unauthenticated request to `/api/collections` ever returns 200.
+
+The custom domain is bound by `scripts/attach-domain.mjs` rather than declared in
+`wrangler.toml`, because wrangler reconciles routes through the zone-scoped
+Workers Routes API and that would force the CI token to carry zone-edit rights on
+every run. Binding a domain is one-time setup, not a per-deploy concern.
+
+## 10. Out of scope for v1 (per `plan.md` §5)
 
 Thumbnail variants / Cloudflare Images and R2 lifecycle rules. The schema leaves
 room for both without migration pain.

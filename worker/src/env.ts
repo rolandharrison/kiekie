@@ -4,8 +4,10 @@ export interface Env {
   ASSETS: Fetcher;
   /** Public origin used when minting share/collection URLs. */
   WEB_BASE?: string;
-  /** "1" in production: Cloudflare Access sits in front, so trust its headers. */
-  TRUST_ACCESS_HEADERS?: string;
+  /** e.g. "example.cloudflareaccess.com" — set only when behind Access. */
+  ACCESS_TEAM_DOMAIN?: string;
+  /** The Access application's AUD tag; scopes tokens to this app specifically. */
+  ACCESS_AUD?: string;
   /** Local-only stub identity so the app works without a Zero Trust tenant. */
   DEV_IDENTITY?: string;
 }

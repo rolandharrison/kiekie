@@ -1,0 +1,114 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Never let two deploys race on the same Worker or D1 database.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Typecheck, unit tests, e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        # Boots a real Worker (wrangler dev) with local D1 + R2 and drives it in
+        # a browser, so the deploy is gated on the app actually working.
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to kiekie.example
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the SPA into the Worker's asset directory
+        run: npm run build --workspace web
+
+      - name: Apply D1 migrations
+        run: npm run migrate:remote --workspace worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy the Worker
+        run: npm run deploy --workspace worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke test the live deployment
+        # Uses the Access service token, because the deployed app is behind
+        # Cloudflare Access — an unauthenticated probe only ever sees the login
+        # redirect and would tell us nothing about the Worker itself.
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          echo "-- authenticated /api/me must identify our service token"
+          body=$(curl -sS --fail-with-body --retry 5 --retry-all-errors --retry-delay 4 \
+            -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            https://kiekie.example/api/me)
+          echo "$body"
+          echo "$body" | grep -q '"kind":"service"'
+
+          echo "-- the API must not be reachable without Access"
+          anon=$(curl -sS -o /dev/null -w '%{http_code}' "https://kiekie.example/api/collections?cb=$RANDOM")
+          echo "anonymous status: $anon"
+          if [ "$anon" = "200" ]; then
+            echo "FAIL: /api/collections served content without authentication"
+            exit 1
+          fi
+
+          echo "-- workers.dev must stay disabled (it cannot be Access-protected)"
+          dev=$(curl -sS -o /dev/null -w '%{http_code}' https://kiekie.example.workers.dev/health || true)
+          echo "workers.dev status: $dev"
+          if [ "$dev" = "200" ]; then
+            echo "FAIL: the app is exposed on workers.dev, outside the Access wall"
+            exit 1
+          fi

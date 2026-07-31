@@ -6,9 +6,12 @@ services:
     # Loopback-only publish: no auth on the MCP itself is fine because nothing
     # off this machine can reach it.
     ports: ['127.0.0.1:8899:8899']
+    # Values come from mcp/.env (compose loads it automatically). That file holds
+    # only the Access service token — deliberately not the Cloudflare API token,
+    # which this container has no business being able to read.
     environment:
-      API_BASE: ${API_BASE:-https://shots.yourdomain.com}
-      WEB_BASE: ${WEB_BASE:-https://shots.yourdomain.com}
+      API_BASE: ${API_BASE:-https://kiekie.example}
+      WEB_BASE: ${WEB_BASE:-https://kiekie.example}
       CF_ACCESS_CLIENT_ID: ${CF_ACCESS_CLIENT_ID}
       CF_ACCESS_CLIENT_SECRET: ${CF_ACCESS_CLIENT_SECRET}
       # host prefix -> container prefix; the MCP translates incoming file paths.

@@ -43,32 +43,67 @@ npm run migrate:local                # apply D1 schema to the local simulator
 npm run dev                          # wrangler dev on http://localhost:8787
 ```
 
-Locally there is no Cloudflare Access, so the Worker uses the `DEV_IDENTITY` var
-(`dev@localhost`) as the caller. `TRUST_ACCESS_HEADERS` is off, which means Access
-headers are deliberately *ignored* — nobody can forge an identity by setting a
-header against a dev instance.
+Locally there is no Cloudflare Access, so the Worker falls back to the
+`DEV_IDENTITY` var (`dev@localhost`) as the caller. The `ACCESS_*` vars are unset
+in the top-level `[vars]`, so a dev instance never tries to verify tokens — and
+because production sets `DEV_IDENTITY = ""`, the reverse can't happen either: if
+the Access config were ever removed from the deployed Worker it would 401
+everything rather than silently fall open.
 
-## Deploying
+## How authentication works
 
-1. Create the resources and wire the ids into `worker/wrangler.toml`:
-   ```bash
-   npx wrangler d1 create kiekie              # paste database_id into wrangler.toml
-   npx wrangler r2 bucket create kiekie-screenshots
-   npm run migrate:remote --workspace worker
-   ```
-2. Turn on header trust for production (this is what makes Access authoritative):
-   ```toml
-   [vars]
-   TRUST_ACCESS_HEADERS = "1"
-   DEV_IDENTITY = ""
-   ```
-3. `npm run build --workspace web && npm run deploy --workspace worker`
-4. Put Cloudflare Access in front of the hostname:
-   - an **Allow** policy for your own email(s) — covers the browser;
-   - a **service token**, added to the same policy — covers the MCP servers;
-   - a **Bypass** policy scoped to the `/p/*` path so public share links skip the
-     login wall. Everything else on the hostname stays gated, and the Worker
-     validates the share token itself.
+Cloudflare Access authenticates at the edge and forwards a **signed JWT** in the
+`Cf-Access-Jwt-Assertion` header (and the `CF_Authorization` cookie). The Worker
+verifies that signature against the tenant's published keys before trusting
+anything — see `worker/src/access.ts`. It checks the signature, the `aud` (so a
+token minted for a *different* Access app on the same tenant is rejected), the
+issuer, and expiry.
+
+Two claim shapes map to two caller kinds:
+
+| Claim | Caller | Identity |
+|---|---|---|
+| `email` | human who logged in | that email |
+| `common_name` | Access service token | `service:<client-id>` |
+
+Note that Access **consumes** the `CF-Access-Client-Id`/`Secret` headers a service
+token client sends — they never reach the Worker. Reading those raw headers
+therefore doesn't work for machine callers at all, and reading
+`Cf-Access-Authenticated-User-Email` would be forgeable the moment the Worker
+were reachable on any hostname Access doesn't cover. The JWT is the only real
+boundary, so it's the only thing trusted.
+
+## Live deployment
+
+Running at **https://kiekie.example**, deployed automatically by GitHub Actions on
+every push to `main` (`.github/workflows/deploy.yml`): typecheck → unit tests →
+Playwright e2e → build → D1 migrations → deploy → authenticated smoke test.
+
+Cloudflare setup, as provisioned:
+
+- **Access app `kiekie`** on `kiekie.example` — Allow policy for the owner's email
+  (one-time PIN), plus a non-identity policy for the `kiekie-mcp` service token.
+- **Access app `kiekie public share links`** on `kiekie.example/p` — a Bypass policy,
+  so `/p/*` skips the login wall. It's a more specific path, so it wins over the
+  gated app. Everything else on the hostname stays behind Access, and the Worker
+  validates the share token itself.
+- **`workers_dev = false`** — pinned off deliberately. A `workers.dev` URL would
+  serve the same app on a hostname Access cannot protect, bypassing the login
+  wall entirely. The deploy smoke test asserts it stays disabled.
+- The custom domain is bound once via `npm run attach:domain`, not on every
+  deploy — see `scripts/attach-domain.mjs` for why.
+
+To set this up from scratch on another account:
+
+```bash
+cp .env.example .env.local          # fill in CLOUDFLARE_API_TOKEN
+npx wrangler d1 create kiekie       # paste database_id into worker/wrangler.toml
+npx wrangler r2 bucket create kiekie-screenshots
+npm run attach:domain your-host.example
+# create the Access apps + service token, then put the team domain and the
+# gated app's AUD tag into [env.production.vars] in worker/wrangler.toml
+npm run deploy
+```
 
 The bucket stays private: images are only reachable via `GET /img/:key` (behind
 Access) or `GET /p/:token/img/:key` (scoped to what that link actually shares).
@@ -76,18 +111,19 @@ Access) or `GET /p/:token/img/:key` (scoped to what that link actually shares).
 ## Running the MCP server
 
 ```bash
-cd mcp
-API_BASE=https://shots.yourdomain.com \
-WEB_BASE=https://shots.yourdomain.com \
-CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... \
-PATH_MAP='C:\Dev=/host/dev' HOST_WORK_DIR='C:\Dev' \
-docker compose up -d --build
+cp mcp/.env.example mcp/.env    # fill in the Access service token
+docker compose -f mcp/docker-compose.yml up -d --build
+curl http://127.0.0.1:8899/health
 ```
+
+`mcp/.env` holds only the Access service token and the path mapping —
+deliberately not the Cloudflare API token, which the container has no business
+being able to read.
 
 Then, once per machine:
 
 ```bash
-claude mcp add --transport http screenshots http://localhost:8899/mcp
+claude mcp add --transport http --scope user kiekie http://127.0.0.1:8899/mcp
 ```
 
 `PATH_MAP` translates host paths (what Claude Code knows) into container paths
@@ -128,7 +164,7 @@ coordinates mean the comment is about the whole image.
 
 ```bash
 npm run typecheck   # all three workspaces
-npm test            # 76 Worker tests (real D1 + R2 in Miniflare) + 30 MCP tests
+npm test            # 85 Worker tests (real D1 + R2 in Miniflare) + 30 MCP tests
 npm run test:e2e    # 20 Playwright specs against a real local Worker
 ```
 

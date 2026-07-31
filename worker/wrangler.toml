@@ -2,6 +2,7 @@ name = "kiekie"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
+account_id = "00000000000000000000000000000000"
 
 [assets]
 directory = "./public"
@@ -11,20 +12,69 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "kiekie"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "5559ab78-df5f-4552-b87a-536ad1995644"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "kiekie-screenshots"
 
+# ---------------------------------------------------------------------------
+# Top level = local development and the Playwright suite (`wrangler dev`).
+# There is no Access in front of a local dev server, so DEV_IDENTITY stands in
+# for the signed-in user. These values are NEVER deployed: `npm run deploy`
+# targets the production environment below.
+# ---------------------------------------------------------------------------
 [vars]
-# Public base URL used when minting share/collection links. Left empty so links
-# adopt the origin the request actually arrived on — set it explicitly only if the
-# Worker is reached on a different hostname than the one users should see.
+# Left empty so links adopt the origin the request actually arrived on — set it
+# explicitly only if the Worker is reached on a different hostname than the one
+# users should see.
 WEB_BASE = ""
-# In production set this to "1" — Cloudflare Access sits in front and its headers
-# can be trusted. Leave unset locally so DEV_IDENTITY is used instead.
-TRUST_ACCESS_HEADERS = ""
-# Local-only stub identity so the app is usable without a Zero Trust tenant.
+# No ACCESS_* here: nothing is in front of a local dev server, so the app falls
+# back to this stub caller.
 DEV_IDENTITY = "dev@localhost"
+
+# ---------------------------------------------------------------------------
+# Production. Deployed with `wrangler deploy --env production`.
+#
+# Wrangler does not inherit bindings into an environment, so D1/R2/assets are
+# redeclared here deliberately rather than by oversight.
+# ---------------------------------------------------------------------------
+[env.production]
+name = "kiekie"
+# Critical: a workers.dev URL would serve this same app on a hostname Access
+# cannot protect, bypassing the entire login wall. Pinned off rather than left
+# to wrangler's default.
+workers_dev = false
+
+# The kiekie.example custom domain is attached out of band by `npm run attach:domain`
+# (scripts/attach-domain.mjs) rather than declared here. Reconciling a route on
+# every deploy needs a zone-scoped "Workers Routes: Edit" permission, which
+# would make the CI token far broader than it needs to be — and the domain
+# binding is a one-time operation, not something a code deploy should churn.
+
+[env.production.assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "kiekie"
+database_id = "5559ab78-df5f-4552-b87a-536ad1995644"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "kiekie-screenshots"
+
+[env.production.vars]
+WEB_BASE = "https://kiekie.example"
+# Every request must carry an Access assertion signed by this tenant and minted
+# for this application's AUD. Verified against the tenant's public keys.
+ACCESS_TEAM_DOMAIN = "example.cloudflareaccess.com"
+ACCESS_AUD = "0000000000000000000000000000000000000000000000000000000000000000"
+# Empty on purpose: with no stub identity, any request Access did not
+# authenticate resolves to no caller and every /api/* route returns 401. The
+# deployment fails closed.
+DEV_IDENTITY = ""

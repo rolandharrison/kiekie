@@ -1,27 +1,49 @@
 import type { MiddlewareHandler } from 'hono';
 import type { AppEnv, Env, Identity } from './env';
+import { verifyAccessJwt } from './access';
 
-const EMAIL_HEADER = 'Cf-Access-Authenticated-User-Email';
-const CLIENT_ID_HEADER = 'CF-Access-Client-Id';
-const CLIENT_SECRET_HEADER = 'CF-Access-Client-Secret';
+const JWT_HEADER = 'Cf-Access-Jwt-Assertion';
+const JWT_COOKIE = 'CF_Authorization';
+
+function cookieValue(header: string | null, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return rest.join('=');
+  }
+  return null;
+}
 
 /**
- * Cloudflare Access validates the caller *before* the request reaches the Worker,
- * so these headers are authoritative — but only when the Worker is actually behind
- * Access. `TRUST_ACCESS_HEADERS` gates that so a local/dev deployment can't be
- * spoofed by a client simply setting the header itself.
+ * Resolves the caller.
+ *
+ * Production: verify the Access JWT. A human logging in through an IdP carries
+ * an `email` claim; a service token carries `common_name` (its client id) and no
+ * email, which is how the MCP server identifies itself.
+ *
+ * Local: Access can only protect a real zone, so `wrangler dev` has nothing in
+ * front of it. `DEV_IDENTITY` stands in for the signed-in user there. It is
+ * empty in the deployed config, so if the Access config were ever removed the
+ * app would 401 rather than silently fall back to an open dev identity.
  */
-export function resolveIdentity(env: Env, req: Request): Identity | null {
-  const trusted = env.TRUST_ACCESS_HEADERS === '1' || env.TRUST_ACCESS_HEADERS === 'true';
+export async function resolveIdentity(env: Env, req: Request): Promise<Identity | null> {
+  const teamDomain = env.ACCESS_TEAM_DOMAIN?.trim();
+  const aud = env.ACCESS_AUD?.trim();
 
-  if (trusted) {
-    const email = req.headers.get(EMAIL_HEADER);
+  if (teamDomain && aud) {
+    const token =
+      req.headers.get(JWT_HEADER) ?? cookieValue(req.headers.get('cookie'), JWT_COOKIE);
+    if (!token) return null;
+
+    const result = await verifyAccessJwt(token, { teamDomain, aud });
+    if (!result.ok) {
+      console.warn('rejected Access assertion:', result.reason);
+      return null;
+    }
+
+    const { email, common_name: commonName } = result.claims;
     if (email) return { actor: email, kind: 'user' };
-
-    const clientId = req.headers.get(CLIENT_ID_HEADER);
-    const clientSecret = req.headers.get(CLIENT_SECRET_HEADER);
-    if (clientId && clientSecret) return { actor: `service:${clientId}`, kind: 'service' };
-
+    if (commonName) return { actor: `service:${commonName}`, kind: 'service' };
     return null;
   }
 
@@ -30,7 +52,7 @@ export function resolveIdentity(env: Env, req: Request): Identity | null {
 }
 
 export const requireIdentity: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const identity = resolveIdentity(c.env, c.req.raw);
+  const identity = await resolveIdentity(c.env, c.req.raw);
   if (!identity) {
     return c.json({ error: 'unauthenticated' }, 401);
   }
