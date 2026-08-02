@@ -110,6 +110,7 @@ export function PublicPage({ token, sid }: { token: string; sid?: string }) {
                 alt={current.filename ?? current.id}
                 annotations={data.annotations.filter((a) => a.screenshot_id === current.id)}
                 readOnly
+                downloadName={current.filename ?? `${current.id}.png`}
               />
             </div>
             <div class="stack">

@@ -77,6 +77,15 @@ export function IconLink({ size = 14 }: IconProps) {
   );
 }
 
+export function IconDownload({ size = 14 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="M8 2.5v8M4.8 7.3 8 10.5l3.2-3.2" />
+      <path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2" />
+    </Glyph>
+  );
+}
+
 export function IconEye({ size = 14 }: IconProps) {
   return (
     <Glyph size={size}>

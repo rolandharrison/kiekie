@@ -62,6 +62,34 @@ test('draws a rectangle comment over a region', async ({ page }) => {
   expect(drawn.width / box.width).toBeCloseTo(0.4, 1);
 });
 
+test('zooms and pans without creating annotations, and offers a download', async ({ page }) => {
+  await subject(page, 'Zoom');
+
+  await page.getByTestId('zoom-in').click();
+  await page.getByTestId('zoom-in').click();
+  await expect(page.getByTestId('zoom-reset')).toHaveText('196%');
+
+  // In pan mode a drag moves the view instead of drawing a region.
+  await page.getByTestId('tool-pan').click();
+  await dragImage(page, [0.7, 0.7], [0.3, 0.3]);
+  await expect(page.getByTestId('draft-region')).toHaveCount(0);
+  await expect(page.getByTestId('region-composer')).toHaveCount(0);
+  const transform = await page
+    .locator('.canvas-content')
+    .evaluate((el) => (el as HTMLElement).style.transform);
+  expect(transform).not.toContain('translate(0px, 0px)');
+
+  await page.getByTestId('zoom-reset').click();
+  await expect(page.getByTestId('zoom-reset')).toHaveText('100%');
+
+  await expect(page.getByTestId('download-image')).toHaveAttribute('download', /.+/);
+
+  // Back in comment mode, annotating still works at any zoom.
+  await page.getByTestId('tool-comment').click();
+  await clickImageAt(page, 0.5, 0.5);
+  await expect(page.getByTestId('draft-pin')).toBeVisible();
+});
+
 test('adds a whole-image comment attributed to the signed-in user', async ({ page }) => {
   await subject(page, 'Whole');
 

@@ -121,10 +121,12 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             draft={draft}
             onSelect={setActiveId}
             onDraft={setDraft}
+            downloadName={screenshot.filename ?? `${screenshot.id}.png`}
           />
           <p class="hint">
             <span>
-              <kbd>Click</kbd> the image to drop a pin, or <kbd>drag</kbd> to mark a region.
+              <kbd>Click</kbd> the image to drop a pin, or <kbd>drag</kbd> to mark a region.{' '}
+              <kbd>Scroll</kbd> to zoom; switch to Pan to move around without commenting.
             </span>
           </p>
 

@@ -681,7 +681,8 @@ input[type='file']::file-selector-button {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  /* touch-action is set inline by the Annotator: touches are only captured
+     when a gesture means something (drawing, or panning while zoomed in). */
   box-shadow: var(--shadow-2);
 }
 .canvas-wrap img {
@@ -692,6 +693,54 @@ input[type='file']::file-selector-button {
 .canvas-wrap.drawing {
   cursor: crosshair;
 }
+.canvas-wrap.pannable {
+  cursor: grab;
+}
+.canvas-wrap.is-panning {
+  cursor: grabbing;
+}
+
+/* The zoom/pan transform lives on this inner element so the wrap keeps its
+   natural (fit-width) layout size and simply clips the scaled content. */
+.canvas-content {
+  position: relative;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.canvas-toolbar .seg {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.canvas-toolbar .seg button {
+  border: 0;
+  border-radius: 0;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  background: var(--surface-2);
+}
+.canvas-toolbar .seg button + button {
+  border-left: 1px solid var(--line);
+}
+.canvas-toolbar .seg button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.canvas-toolbar .zoom-label {
+  min-width: 54px;
+  font-variant-numeric: tabular-nums;
+}
+.canvas-toolbar .btn {
+  margin-left: auto;
+}
 .overlay {
   position: absolute;
   inset: 0;
@@ -699,7 +748,9 @@ input[type='file']::file-selector-button {
 
 .region {
   position: absolute;
-  border: 2px solid var(--accent);
+  /* --inv (1/zoom, set by the Annotator) keeps stroke width constant on screen
+     while the content underneath scales. */
+  border: calc(2px * var(--inv, 1)) solid var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-radius: 4px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
@@ -731,9 +782,11 @@ input[type='file']::file-selector-button {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   transition: transform 0.14s var(--ease);
+  /* Counter-scale so pins stay 24px on screen at any zoom level. */
+  transform: scale(var(--inv, 1));
 }
 .pin:hover {
-  transform: scale(1.12);
+  transform: scale(calc(var(--inv, 1) * 1.12));
 }
 .pin.resolved {
   background: var(--ok);
