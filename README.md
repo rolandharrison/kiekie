@@ -10,16 +10,17 @@ those comments — with their region coordinates — straight back.
 ┌─────────────── dev machine ───────────────┐
 │  Claude Code ──(MCP over HTTP)──► MCP     │
 │                               container   │
+│                                   │       │
 │         reads file from mounted   │       │
-│         host path, uploads ───────┼─────► │
+│         host path, uploads ───────┤       │
 └───────────────────────────────────┼───────┘
                                     ▼
-                  ┌──────── Cloudflare ─────────┐
-                  │ Worker (Hono): API + Web UI │
-                  │   ├── R2  (image blobs)     │
-                  │   ├── D1  (metadata/annos)  │
-                  │   └── Access (auth)         │
-                  └─────────────────────────────┘
+                     ┌──────── Cloudflare ─────────┐
+                     │ Worker (Hono): API + Web UI │
+                     │   ├── R2  (image blobs)     │
+                     │   ├── D1  (metadata/annos)  │
+                     │   └── Access (auth)         │
+                     └─────────────────────────────┘
 ```
 
 Setting this up on a new machine? See [`INSTALL.md`](./INSTALL.md).
