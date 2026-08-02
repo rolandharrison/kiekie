@@ -4,7 +4,7 @@ export interface Env {
   ASSETS: Fetcher;
   /** Public origin used when minting share/collection URLs. */
   WEB_BASE?: string;
-  /** e.g. "example.cloudflareaccess.com" — set only when behind Access. */
+  /** e.g. "your-team.cloudflareaccess.com" — set only when behind Access. */
   ACCESS_TEAM_DOMAIN?: string;
   /** The Access application's AUD tag; scopes tokens to this app specifically. */
   ACCESS_AUD?: string;

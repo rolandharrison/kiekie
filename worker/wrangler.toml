@@ -2,7 +2,8 @@ name = "kiekie"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
-account_id = "00000000000000000000000000000000"
+# account_id comes from the CLOUDFLARE_ACCOUNT_ID environment variable (CI
+# secret / .env.local) so the account is not published with the repo.
 
 [assets]
 directory = "./public"
@@ -47,7 +48,7 @@ name = "kiekie"
 # to wrangler's default.
 workers_dev = false
 
-# The kiekie.example custom domain is attached out of band by `npm run attach:domain`
+# The custom domain is attached out of band by `npm run attach:domain`
 # (scripts/attach-domain.mjs) rather than declared here. Reconciling a route on
 # every deploy needs a zone-scoped "Workers Routes: Edit" permission, which
 # would make the CI token far broader than it needs to be — and the domain
@@ -69,12 +70,14 @@ binding = "BUCKET"
 bucket_name = "kiekie-screenshots"
 
 [env.production.vars]
-WEB_BASE = "https://kiekie.example"
-# Every request must carry an Access assertion signed by this tenant and minted
-# for this application's AUD. Verified against the tenant's public keys.
-ACCESS_TEAM_DOMAIN = "example.cloudflareaccess.com"
-ACCESS_AUD = "0000000000000000000000000000000000000000000000000000000000000000"
-# Empty on purpose: with no stub identity, any request Access did not
-# authenticate resolves to no caller and every /api/* route returns 401. The
-# deployment fails closed.
+# WEB_BASE, ACCESS_TEAM_DOMAIN and ACCESS_AUD are Worker *secrets*
+# (`wrangler secret put <NAME> --env production`), not vars, so the deployment
+# hostname and Access tenant are not published with the repo. Every request must
+# carry an Access assertion signed by that tenant and minted for that AUD,
+# verified against the tenant's public keys.
+#
+# DEV_IDENTITY is empty on purpose: with no stub identity, any request Access
+# did not authenticate resolves to no caller and every /api/* route returns
+# 401. The deployment fails closed — including if the ACCESS_* secrets are
+# ever missing.
 DEV_IDENTITY = ""

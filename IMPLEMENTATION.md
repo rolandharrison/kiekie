@@ -256,7 +256,8 @@ every pre-existing row meant, so the migration needs no backfill.
 
 ## 9. Deployment
 
-Live at `https://kiekie.example`. GitHub Actions (`.github/workflows/deploy.yml`) runs
+Live on a custom domain behind Cloudflare Access (the hostname is kept out of
+the repo). GitHub Actions (`.github/workflows/deploy.yml`) runs
 typecheck → unit tests → Playwright e2e → build → D1 migrations → deploy →
 authenticated smoke test on every push to `main`.
 

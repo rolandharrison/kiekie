@@ -8,8 +8,10 @@ them involves installing anything.
 | Look at screenshots and leave comments | Nothing. See [Just viewing](#just-viewing). |
 | Let Claude Code on *this* machine push screenshots and read comments back | The MCP server. See [Agent machines](#agent-machines). |
 
-The service itself is already deployed at **https://kiekie.example** and is not
-per-machine — you are only ever connecting a new client to it.
+The service itself is already deployed (ask the owner for the URL — it is
+deliberately not written down in this public repo) and is not per-machine —
+you are only ever connecting a new client to it. Below, `<kiekie domain>`
+stands for that deployment's hostname.
 
 ---
 
@@ -19,7 +21,7 @@ Nothing to install.
 
 1. Your email address has to be on the Cloudflare Access allow list. Ask the
    account owner to add it (see [Adding a person](#adding-a-person) below).
-2. Go to <https://kiekie.example>, type your email, and paste the one-time PIN
+2. Go to `https://<kiekie domain>`, type your email, and paste the one-time PIN
    Cloudflare emails you. No Cloudflare account is needed.
 
 Whatever address you sign in with becomes the `author` on the comments you
@@ -36,10 +38,10 @@ login.
 
 This is for a machine where Claude Code should be able to register screenshots.
 Claude Code talks to a small MCP server running in Docker on that same machine;
-the MCP server is what holds the credential and talks to kiekie.example.
+the MCP server is what holds the credential and talks to the deployed service.
 
 ```
-Claude Code ──HTTP──► MCP container ──HTTPS + service token──► kiekie.example
+Claude Code ──HTTP──► MCP container ──HTTPS + service token──► <kiekie domain>
  (127.0.0.1:8899)      reads files from a mounted host folder
 ```
 
@@ -91,8 +93,8 @@ cp mcp/.env.example mcp/.env
 Then edit `mcp/.env`:
 
 ```ini
-API_BASE=https://kiekie.example
-WEB_BASE=https://kiekie.example
+API_BASE=https://<kiekie domain>
+WEB_BASE=https://<kiekie domain>
 CF_ACCESS_CLIENT_ID=<client id from step 2>
 CF_ACCESS_CLIENT_SECRET=<client secret from step 2>
 
@@ -173,7 +175,7 @@ emails with a single rule for `emails ending in @yourcompany.com`.
 
 ```bash
 curl -H "CF-Access-Client-Id: $ID" -H "CF-Access-Client-Secret: $SECRET" \
-  https://kiekie.example/api/me
+  https://<kiekie domain>/api/me
 ```
 
 A working token returns `{"identity":{"actor":"service:...","kind":"service"}}`.

@@ -77,19 +77,23 @@ boundary, so it's the only thing trusted.
 
 ## Live deployment
 
-Running at **https://kiekie.example**, deployed automatically by GitHub Actions on
-every push to `main` (`.github/workflows/deploy.yml`): typecheck → unit tests →
-Playwright e2e → build → D1 migrations → deploy → authenticated smoke test.
+Runs on a custom domain behind Cloudflare Access, deployed automatically by
+GitHub Actions on every push to `main` (`.github/workflows/deploy.yml`):
+typecheck → unit tests → Playwright e2e → build → D1 migrations → deploy →
+authenticated smoke test. The production hostname is deliberately not in the
+repo: the Worker reads `WEB_BASE`, `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` from
+Worker secrets, and CI reads `APP_ORIGIN`/`WORKERS_DEV_ORIGIN` from repo
+secrets.
 
-Cloudflare setup, as provisioned:
+Cloudflare setup, as provisioned (`<domain>` = your production hostname):
 
-- **Access app `kiekie`** on `kiekie.example` — Allow policy for the owner's email
+- **Access app `kiekie`** on `<domain>` — Allow policy for the owner's email
   (one-time PIN), plus a non-identity policy for the `kiekie-mcp` service token.
-- **Access app `kiekie public share links`** on `kiekie.example/p` — a Bypass policy,
+- **Access app `kiekie public share links`** on `<domain>/p` — a Bypass policy,
   so `/p/*` skips the login wall. It's a more specific path, so it wins over the
   gated app. Everything else on the hostname stays behind Access, and the Worker
   validates the share token itself.
-- **Access app `kiekie static assets`** on `kiekie.example/assets` — a Bypass policy.
+- **Access app `kiekie static assets`** on `<domain>/assets` — a Bypass policy.
   This is **required**, not optional: the public share page's HTML is bypassed
   under `/p`, but it loads its JS/CSS from `/assets/*`. If those stay gated, an
   anonymous visitor gets the shell but the bundle 302s to the login and the page

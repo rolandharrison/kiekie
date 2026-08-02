@@ -49,7 +49,7 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Deploy to kiekie.example
+    name: Deploy
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -83,9 +83,15 @@ jobs:
         # Uses the Access service token, because the deployed app is behind
         # Cloudflare Access — an unauthenticated probe only ever sees the login
         # redirect and would tell us nothing about the Worker itself.
+        #
+        # APP_ORIGIN is the production origin (https://<domain>) and
+        # WORKERS_DEV_ORIGIN the Worker's workers.dev origin. Both are repo
+        # secrets so the deployment hostname is not published with the repo.
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          APP_ORIGIN: ${{ secrets.APP_ORIGIN }}
+          WORKERS_DEV_ORIGIN: ${{ secrets.WORKERS_DEV_ORIGIN }}
         run: |
           set -euo pipefail
 
@@ -93,12 +99,12 @@ jobs:
           body=$(curl -sS --fail-with-body --retry 5 --retry-all-errors --retry-delay 4 \
             -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
             -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
-            https://kiekie.example/api/me)
+            "$APP_ORIGIN/api/me")
           echo "$body"
           echo "$body" | grep -q '"kind":"service"'
 
           echo "-- the API must not be reachable without Access"
-          anon=$(curl -sS -o /dev/null -w '%{http_code}' "https://kiekie.example/api/collections?cb=$RANDOM")
+          anon=$(curl -sS -o /dev/null -w '%{http_code}' "$APP_ORIGIN/api/collections?cb=$RANDOM")
           echo "anonymous status: $anon"
           if [ "$anon" = "200" ]; then
             echo "FAIL: /api/collections served content without authentication"
@@ -110,7 +116,7 @@ jobs:
           # If those get gated by Access, an anonymous visitor gets the HTML but
           # the bundle 302s to the login and the app never boots. A missing asset
           # should hit the Worker (404/200), never redirect to the Access login.
-          assets_redirect=$(curl -sS -o /dev/null -w '%{redirect_url}' "https://kiekie.example/assets/probe-$RANDOM.js")
+          assets_redirect=$(curl -sS -o /dev/null -w '%{redirect_url}' "$APP_ORIGIN/assets/probe-$RANDOM.js")
           echo "assets redirect target: ${assets_redirect:-<none>}"
           if printf '%s' "$assets_redirect" | grep -q 'cloudflareaccess.com'; then
             echo "FAIL: /assets/* is behind Access — public share links will render blank"
@@ -118,7 +124,7 @@ jobs:
           fi
 
           echo "-- workers.dev must stay disabled (it cannot be Access-protected)"
-          dev=$(curl -sS -o /dev/null -w '%{http_code}' https://kiekie.example.workers.dev/health || true)
+          dev=$(curl -sS -o /dev/null -w '%{http_code}' "$WORKERS_DEV_ORIGIN/health" || true)
           echo "workers.dev status: $dev"
           if [ "$dev" = "200" ]; then
             echo "FAIL: the app is exposed on workers.dev, outside the Access wall"

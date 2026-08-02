@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Idempotently binds kiekie.example to the deployed Worker.
+ * Idempotently binds the production custom domain to the deployed Worker.
  *
  * Kept out of `wrangler.toml` on purpose: wrangler reconciles routes through the
  * zone-scoped Workers Routes API, which would require the deploy token to carry
@@ -8,19 +8,22 @@
  * setup step, so it lives here and runs by hand.
  *
  * Usage: node scripts/attach-domain.mjs [hostname]
- * Reads CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID from the environment.
+ * Reads CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID from the environment;
+ * the hostname comes from the argument or APP_HOSTNAME (see .env.local).
  */
 import process from 'node:process';
 
-const HOSTNAME = process.argv[2] ?? 'kiekie.example';
+const HOSTNAME = process.argv[2] ?? process.env.APP_HOSTNAME;
 const SERVICE = 'kiekie';
 const ENVIRONMENT = 'production';
 
 const token = process.env.CLOUDFLARE_API_TOKEN;
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 
-if (!token || !accountId) {
-  console.error('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set (see .env.local).');
+if (!token || !accountId || !HOSTNAME) {
+  console.error(
+    'CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set, and a hostname passed as an argument or via APP_HOSTNAME (see .env.local).',
+  );
   process.exit(1);
 }
 

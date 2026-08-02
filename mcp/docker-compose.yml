@@ -10,8 +10,8 @@ services:
     # only the Access service token — deliberately not the Cloudflare API token,
     # which this container has no business being able to read.
     environment:
-      API_BASE: ${API_BASE:-https://kiekie.example}
-      WEB_BASE: ${WEB_BASE:-https://kiekie.example}
+      API_BASE: ${API_BASE:?set API_BASE in mcp/.env}
+      WEB_BASE: ${WEB_BASE:?set WEB_BASE in mcp/.env}
       CF_ACCESS_CLIENT_ID: ${CF_ACCESS_CLIENT_ID}
       CF_ACCESS_CLIENT_SECRET: ${CF_ACCESS_CLIENT_SECRET}
       # host prefix -> container prefix; the MCP translates incoming file paths.
