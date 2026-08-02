@@ -16,7 +16,7 @@ services:
       CF_ACCESS_CLIENT_SECRET: ${CF_ACCESS_CLIENT_SECRET}
       # host prefix -> container prefix; the MCP translates incoming file paths.
       # Windows:  C:\Dev=/host/dev
-      # macOS/Linux: /Users/roland/dev=/host/dev
+      # macOS/Linux: /Users/you/dev=/host/dev
       PATH_MAP: ${PATH_MAP:-C:\Dev=/host/dev}
     volumes:
       # Mount just the folder you work in, read-only.

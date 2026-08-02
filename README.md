@@ -25,8 +25,7 @@ those comments — with their region coordinates — straight back.
 ```
 
 Setting this up on a new machine? See [`INSTALL.md`](./INSTALL.md).
-See [`plan.md`](./plan.md) for the original design and
-[`IMPLEMENTATION.md`](./IMPLEMENTATION.md) for how it was built.
+See [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) for how it was built.
 
 ## Layout
 

@@ -1,6 +1,6 @@
 # kiekie — Implementation Plan
 
-Derived from [`plan.md`](./plan.md). This document is the build-order contract: what
+This document is the build-order contract: what
 gets written, where it lives, how it is wired, and how each piece is proven to work.
 
 ---
@@ -12,7 +12,6 @@ npm workspaces monorepo, TypeScript end to end.
 ```
 kiekie/
 ├── package.json                 # workspaces root; scripts: dev, build, test, test:e2e
-├── plan.md                      # original design (unchanged)
 ├── IMPLEMENTATION.md            # this file
 ├── README.md                    # setup / deploy / usage
 ├── worker/                      # Cloudflare Worker — API + static asset host
@@ -50,8 +49,8 @@ both and the SPA needs no CORS or token juggling.
 
 ## 1. Data layer (D1)
 
-`worker/migrations/0001_init.sql` implements the four tables from `plan.md`
-verbatim — `collections`, `screenshots`, `annotations`, `share_links` — plus:
+`worker/migrations/0001_init.sql` implements the four tables from the original
+design verbatim — `collections`, `screenshots`, `annotations`, `share_links` — plus:
 
 - `PRAGMA foreign_keys` friendly `ON DELETE CASCADE` on `screenshots.collection_id`
   and `annotations.screenshot_id` so deletes are one statement.
@@ -70,7 +69,7 @@ per collection for cleanup.
 
 ## 2. Auth model
 
-One middleware, three caller classes (matching the `plan.md` table):
+One middleware, three caller classes:
 
 | Caller | Detection | Identity |
 |---|---|---|
@@ -78,7 +77,7 @@ One middleware, three caller classes (matching the `plan.md` table):
 | MCP / machine | `common_name` claim in the Access JWT | `service:{clientId}` |
 | Public share visitor | request path under `/p/*` | none; read-only |
 
-`plan.md` proposed trusting the `Cf-Access-Authenticated-User-Email` and
+The original design proposed trusting the `Cf-Access-Authenticated-User-Email` and
 `CF-Access-Client-*` headers directly. **That does not work, and was replaced by
 JWT verification** (`worker/src/access.ts`) after testing against the real
 deployment:
@@ -111,7 +110,7 @@ the key's collection belongs to the shared target.
 
 ## 3. Worker API
 
-Exactly the surface in `plan.md` §"API surface", implemented with Hono:
+Implemented with Hono:
 
 ```
 POST   /api/collections                      {name, description}
@@ -189,7 +188,7 @@ Tools, exactly as specified: `create_collection`, `update_collection`,
 surfaces the `WEB_BASE` URLs (`/c/{cid}`, `/c/{cid}/s/{sid}`) back to Claude Code.
 
 Dockerfile: multi-stage, `node:22-alpine`, non-root, healthcheck on `/health`.
-`docker-compose.yml` per `plan.md` with `restart: unless-stopped`, read-only mount,
+`docker-compose.yml` with `restart: unless-stopped`, read-only mount,
 and a single merged `environment:` block (the original had two, the second of which
 would silently drop the API/token vars — fixed here).
 
@@ -285,7 +284,7 @@ The custom domain is bound by `scripts/attach-domain.mjs` rather than declared i
 Workers Routes API and that would force the CI token to carry zone-edit rights on
 every run. Binding a domain is one-time setup, not a per-deploy concern.
 
-## 10. Out of scope for v1 (per `plan.md` §5)
+## 10. Out of scope for v1
 
 Thumbnail variants / Cloudflare Images and R2 lifecycle rules. The schema leaves
 room for both without migration pain.
