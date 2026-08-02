@@ -47,9 +47,16 @@ export interface ShareLinkRow {
  * carry milliseconds — the column default is second-resolution, which makes
  * "most recently updated first" ordering ambiguous when several writes land in
  * the same second (exactly what tests and rapid MCP uploads do).
+ *
+ * Milliseconds alone still tie: Workers freeze `Date.now()` for the duration of
+ * a request, so two writes in one request stamp identically and recency order
+ * falls through to the random-id tiebreaker. Each call therefore returns at
+ * least 1ms more than the last one this isolate handed out.
  */
+let lastMs = 0;
 export function now(): string {
-  return stamp(new Date());
+  lastMs = Math.max(Date.now(), lastMs + 1);
+  return stamp(new Date(lastMs));
 }
 
 function stamp(date: Date): string {
