@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Screenshot collection & annotation system — Cloudflare Worker + local MCP server",
+  "license": "MIT",
   "workspaces": [
     "worker",
     "web",
