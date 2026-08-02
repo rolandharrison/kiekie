@@ -58,6 +58,20 @@ describe('screenshot upload', () => {
     expect(body.error).toMatch(/image/);
   });
 
+  it('rejects an SVG even when declared as an image type', async () => {
+    // The declared content type must never be trusted: an SVG stored and later
+    // served inline as image/svg+xml would be stored XSS on this origin.
+    const col = await createCollection();
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const form = new FormData();
+    form.append('file', new File([svg], 'evil.svg', { type: 'image/svg+xml' }));
+    const { status } = await api(`/api/collections/${col.id}/screenshots`, {
+      method: 'POST',
+      body: form,
+    });
+    expect(status).toBe(400);
+  });
+
   it('rejects an empty file and a missing file', async () => {
     const col = await createCollection();
 
@@ -132,7 +146,15 @@ describe('image streaming', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect(res.headers.get('cache-control')).toContain('private');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('content-security-policy')).toContain('sandbox');
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(pngBytes());
+  });
+
+  it('404s a bucket object with no screenshot row', async () => {
+    // /img must not be a read primitive for arbitrary bucket keys.
+    await env.BUCKET.put('stray/object.png', pngBytes());
+    expect((await call('/img/stray/object.png')).status).toBe(404);
   });
 
   it('revalidates with etag', async () => {

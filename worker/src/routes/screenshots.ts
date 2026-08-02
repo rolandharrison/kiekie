@@ -45,11 +45,14 @@ uploads.post('/:cid/screenshots', async (c) => {
   const filename =
     (typeof formName === 'string' && formName.trim()) || file.name || 'screenshot.png';
 
+  // Only formats verified by magic bytes are accepted — the caller-declared
+  // type is never trusted. Trusting it would let an "image/svg+xml" upload
+  // through, and an SVG served inline from /img is script running on this
+  // origin (stored XSS), reachable login-free via /p/{token}/img.
   const sniffed = sniffImage(bytes);
-  const declared = file.type || null;
-  const contentType = sniffed.contentType ?? declared ?? 'application/octet-stream';
-  if (!contentType.startsWith('image/')) {
-    return c.json({ error: 'unsupported file type; expected an image' }, 400);
+  const contentType = sniffed.contentType;
+  if (!contentType) {
+    return c.json({ error: 'unsupported file type; expected a PNG, JPEG, GIF or WebP image' }, 400);
   }
 
   const sourceHostRaw = form.get('source_host');

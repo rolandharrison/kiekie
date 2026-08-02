@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
-import { api, call, createCollection, postJson, useDatabase } from './helpers';
+import { api, call, createCollection, pngBytes, postJson, useDatabase } from './helpers';
 import { AUD, TEAM_DOMAIN, accessHeaders, mintToken, stubJwks } from './access-jwt';
 
 useDatabase();
@@ -137,7 +137,7 @@ describe('behind Cloudflare Access', () => {
       headers,
     });
     const form = new FormData();
-    form.append('file', new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], 's.png', { type: 'image/png' }));
+    form.append('file', new File([pngBytes()], 's.png', { type: 'image/png' }));
     const shot = await api(`/api/collections/${col.body.id}/screenshots`, {
       method: 'POST',
       body: form,
@@ -149,6 +149,42 @@ describe('behind Cloudflare Access', () => {
       headers,
     });
     expect(anno.body.annotation.author).toBe('roland@example.com');
+  });
+
+  it('refuses a state-changing request from a foreign Origin', async () => {
+    // CSRF backstop: a browser attaches the attacker page's Origin to a
+    // cross-site request; the cookie-authenticated session must not honour it.
+    const token = await mintToken({ email: 'roland@example.com' });
+    const res = await api('/api/collections', {
+      ...postJson({ name: 'csrf', description: null }),
+      headers: {
+        cookie: `CF_Authorization=${token}`,
+        origin: 'https://evil.example',
+        'content-type': 'application/json',
+      },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('accepts a state-changing request from its own Origin', async () => {
+    const token = await mintToken({ email: 'roland@example.com' });
+    const res = await api('/api/collections', {
+      ...postJson({ name: 'same origin', description: null }),
+      headers: {
+        cookie: `CF_Authorization=${token}`,
+        origin: 'https://shots.example.com',
+        'content-type': 'application/json',
+      },
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('leaves cross-origin reads alone — SameSite and Access gate those', async () => {
+    const token = await mintToken({ email: 'roland@example.com' });
+    const res = await call('/api/me', {
+      headers: { cookie: `CF_Authorization=${token}`, origin: 'https://evil.example' },
+    });
+    expect(res.status).toBe(200);
   });
 
   it('leaves public share routes reachable with no assertion', async () => {

@@ -75,6 +75,12 @@ therefore doesn't work for machine callers at all, and reading
 were reachable on any hostname Access doesn't cover. The JWT is the only real
 boundary, so it's the only thing trusted.
 
+One consequence worth stating plainly: there is **no per-user authorization
+inside the app**. Every identity Access admits — human or service token — has
+full read/write over all collections, screenshots, annotations and share
+links. The Access policy *is* the permission model, so only add people and
+tokens you'd trust with everything.
+
 ## Live deployment
 
 Runs on a custom domain behind Cloudflare Access, deployed automatically by

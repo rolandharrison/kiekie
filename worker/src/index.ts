@@ -16,6 +16,22 @@ app.get('/health', (c) => c.json({ ok: true }));
 // Public share routes come first and are deliberately outside the auth wall.
 app.route('/p', publicRoutes);
 
+// CSRF backstop for the cookie-authenticated browser session. Access's
+// SameSite cookie already stops a cross-site form post from carrying auth,
+// but that lives in Cloudflare's config, not this code — so also refuse any
+// state-changing request whose Origin disagrees with the request URL.
+// Non-browser callers (MCP, curl) send no Origin header and are unaffected.
+app.use('/api/*', async (c, next) => {
+  const method = c.req.method;
+  if (method !== 'GET' && method !== 'HEAD') {
+    const origin = c.req.header('origin');
+    if (origin && origin !== new URL(c.req.url).origin) {
+      return c.json({ error: 'cross-origin request rejected' }, 403);
+    }
+  }
+  await next();
+});
+
 // Everything below requires an identity (Access email or service token).
 app.use('/api/*', requireIdentity);
 app.use('/img/*', requireIdentity);
