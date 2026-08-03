@@ -10,8 +10,6 @@ interface Props {
   label?: string;
   /** What is being shared, for the dialog's wording. */
   subject?: string;
-  /** `small` for the row of a list, `primary` for a page header. */
-  variant?: 'small' | 'primary';
 }
 
 const EXPIRY_CHOICES: { label: string; days: number | null }[] = [
@@ -33,7 +31,6 @@ export function ShareButton({
   testId = 'share-button',
   label = 'Share',
   subject = 'this',
-  variant = 'small',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [minted, setMinted] = useState<MintedShare | null>(null);
@@ -75,11 +72,7 @@ export function ShareButton({
 
   return (
     <>
-      <button
-        class={variant === 'primary' ? 'primary' : 'small'}
-        data-testid={testId}
-        onClick={() => setOpen(true)}
-      >
+      <button class="small" data-testid={testId} onClick={() => setOpen(true)}>
         <IconShare />
         {label}
       </button>
