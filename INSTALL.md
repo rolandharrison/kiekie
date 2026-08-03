@@ -8,8 +8,8 @@ them involves installing anything.
 | Look at screenshots and leave comments | Nothing. See [Just viewing](#just-viewing). |
 | Let Claude Code on *this* machine push screenshots and read comments back | The MCP server. See [Agent machines](#agent-machines). |
 
-The service itself is already deployed (ask the owner for the URL — it is
-deliberately not written down in this public repo) and is not per-machine —
+The service itself is already deployed (ask the owner for the URL - it is
+deliberately not written down in this public repo) and is not per-machine -
 you are only ever connecting a new client to it. Below, `<kiekie domain>`
 stands for that deployment's hostname.
 
@@ -27,7 +27,7 @@ Nothing to install.
 Whatever address you sign in with becomes the `author` on the comments you
 leave, so use the one people will recognise.
 
-**Public share links (`/p/...`) need none of this** — they bypass Access
+**Public share links (`/p/...`) need none of this** - they bypass Access
 entirely and work for anyone, logged in or not. If a colleague only ever needs
 to look at one collection, send them a share link instead of adding them to the
 login.
@@ -47,7 +47,7 @@ Claude Code ──HTTP──► MCP container ──HTTPS + service token──�
 
 ### Prerequisites
 
-- **Docker Desktop** (or Docker Engine + compose plugin) — running.
+- **Docker Desktop** (or Docker Engine + compose plugin) - running.
 - **git**.
 - **Claude Code**.
 
@@ -63,7 +63,7 @@ cd kiekie
 ### 2. Get a service token for this machine
 
 The MCP server authenticates to Cloudflare Access with a **service token**.
-Give every machine its own — a shared one can't be revoked without cutting off
+Give every machine its own - a shared one can't be revoked without cutting off
 everybody, and you lose the ability to tell which machine did what.
 
 In the Cloudflare dashboard:
@@ -71,14 +71,14 @@ In the Cloudflare dashboard:
 1. **Zero Trust → Access → Service Auth → Service Tokens → Create Service Token**
 2. Name it after the machine, e.g. `kiekie-mcp-<hostname>`. Duration: whatever
    you're willing to rotate on.
-3. Copy the **Client ID** and **Client Secret** now — the secret is shown once
+3. Copy the **Client ID** and **Client Secret** now - the secret is shown once
    and never again.
 4. **Zero Trust → Access → Applications → `kiekie` → Policies → `MCP service
    token` → Edit**, and add the new token to the include list. Leave the
    existing entries alone; the list is replaced wholesale when you save.
 
 Do **not** add the token to the `kiekie public share links` or `kiekie static
-assets` applications — those are bypass policies and have nothing to
+assets` applications - those are bypass policies and have nothing to
 authenticate.
 
 > The token grants full read/write on the API, the same as a logged-in human.
@@ -116,10 +116,10 @@ that exist inside the container. Per OS:
 
 The mount is read-only, and it is the *only* thing the container can see.
 Screenshots must be saved somewhere under that folder or the MCP will refuse
-them — the error names the mounted roots, so the agent can correct itself.
+them - the error names the mounted roots, so the agent can correct itself.
 
 `mcp/.env` is gitignored. It deliberately holds only the Access service token
-and the path mapping, never the Cloudflare API token — the container has no
+and the path mapping, never the Cloudflare API token - the container has no
 business being able to deploy.
 
 ### 4. Start it
@@ -130,7 +130,7 @@ curl http://127.0.0.1:8899/health
 ```
 
 The port is published on `127.0.0.1` only, so nothing off this machine can
-reach the MCP — which is why the MCP itself needs no authentication of its own.
+reach the MCP - which is why the MCP itself needs no authentication of its own.
 `restart: unless-stopped` means it comes back after a reboot.
 
 ### 5. Register it with Claude Code
@@ -155,7 +155,7 @@ comment, and ask Claude to read the annotations back.
 
 ## Adding a person
 
-Access policies are live Cloudflare state, not repo config — no deploy needed,
+Access policies are live Cloudflare state, not repo config - no deploy needed,
 and the change takes effect immediately.
 
 **Zero Trust → Access → Applications → `kiekie` → Policies → `Owner` → Edit**,
@@ -191,14 +191,14 @@ creation. `docker compose -f mcp/docker-compose.yml up -d --force-recreate`.
 `mcp/docker-compose.yml` and the URL you gave `claude mcp add`.
 
 **A blank page on a share link.** The `/assets` bypass application is missing
-in Cloudflare — see the Access section of the [README](./README.md). The deploy
+in Cloudflare - see the Access section of the [README](./README.md). The deploy
 smoke test guards against this, so it should not recur.
 
 ---
 
 ## Working on kiekie itself
 
-Different job — that's the local dev loop, not an install:
+Different job - that's the local dev loop, not an install:
 
 ```bash
 npm install
