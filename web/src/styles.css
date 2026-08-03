@@ -367,6 +367,16 @@ main {
   flex-wrap: wrap;
 }
 
+.pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pager-pos {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .backlink {
   display: inline-flex;
   align-items: center;

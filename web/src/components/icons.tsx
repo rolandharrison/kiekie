@@ -40,6 +40,14 @@ export function IconArrowLeft({ size = 14 }: IconProps) {
   );
 }
 
+export function IconArrowRight({ size = 14 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="M3.5 8h9M9 3.5 13.5 8 9 12.5" />
+    </Glyph>
+  );
+}
+
 export function IconShare({ size = 14 }: IconProps) {
   return (
     <Glyph size={size}>

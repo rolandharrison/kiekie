@@ -141,6 +141,31 @@ test('shows the annotation count back on the collection grid', async ({ page }) 
   await expect(page.getByTestId(`annotation-count-${sid}`)).toHaveText('1');
 });
 
+test('steps through the collection with next/prev and arrow keys', async ({ page }) => {
+  const cid = await createCollection(page, unique('Pager'), 'pager checks');
+  const older = await uploadScreenshot(page, cid);
+  const newer = await uploadScreenshot(page, cid);
+
+  // Collection order is newest first, so the newer upload is 1 / 2.
+  await page.goto(`/c/${cid}/s/${newer}`);
+  await expect(page.getByTestId('pager-position')).toHaveText('1 / 2');
+  await expect(page.getByTestId('prev-screenshot')).toBeDisabled();
+
+  await page.getByTestId('next-screenshot').click();
+  await expect(page).toHaveURL(new RegExp(`/c/${cid}/s/${older}$`));
+  await expect(page.getByTestId('pager-position')).toHaveText('2 / 2');
+  await expect(page.getByTestId('next-screenshot')).toBeDisabled();
+
+  // Arrow keys page too...
+  await page.keyboard.press('ArrowLeft');
+  await expect(page).toHaveURL(new RegExp(`/c/${cid}/s/${newer}$`));
+
+  // ...but not while typing in a comment field.
+  await page.getByTestId('whole-comment-input').fill('typing here');
+  await page.getByTestId('whole-comment-input').press('ArrowRight');
+  await expect(page).toHaveURL(new RegExp(`/c/${cid}/s/${newer}$`));
+});
+
 test('moves a screenshot to another collection', async ({ page }) => {
   const source = await createCollection(page, unique('Source'), 'from');
   const targetName = unique('Target');

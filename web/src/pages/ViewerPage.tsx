@@ -5,13 +5,14 @@ import { formatTimestamp } from '../buckets';
 import { Annotator, type Region } from '../components/Annotator';
 import { CommentList } from '../components/CommentList';
 import { ShareButton } from '../components/ShareButton';
-import { IconArrowLeft } from '../components/icons';
+import { IconArrowLeft, IconArrowRight } from '../components/icons';
 
 export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [collection, setCollection] = useState<Collection | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [siblings, setSiblings] = useState<Screenshot[]>([]);
   const [draft, setDraft] = useState<Region | null>(null);
   const [body, setBody] = useState('');
   const [wholeBody, setWholeBody] = useState('');
@@ -27,9 +28,38 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
 
   useEffect(() => {
     setScreenshot(null);
+    setDraft(null);
+    setBody('');
+    setActiveId(null);
     refresh().catch((e) => setError(e.message));
     api.listCollections().then(setAllCollections).catch(() => setAllCollections([]));
   }, [sid]);
+
+  // Siblings in collection order, for prev/next. Refetched per collection, not
+  // per screenshot, so stepping through doesn't reload the list every time.
+  const collectionId = collection?.id ?? cid;
+  useEffect(() => {
+    api
+      .getCollection(collectionId)
+      .then((r) => setSiblings(r.screenshots))
+      .catch(() => setSiblings([]));
+  }, [collectionId]);
+
+  const index = siblings.findIndex((s) => s.id === sid);
+  const prev = index > 0 ? siblings[index - 1] : null;
+  const next = index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null;
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      const t = event.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      if (event.key === 'ArrowLeft' && prev) navigate(`/c/${collectionId}/s/${prev.id}`);
+      if (event.key === 'ArrowRight' && next) navigate(`/c/${collectionId}/s/${next.id}`);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [prev?.id, next?.id, collectionId]);
 
   async function submitRegionComment(event: Event) {
     event.preventDefault();
@@ -74,7 +104,7 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
     );
   }
 
-  const targetCid = collection?.id ?? cid;
+  const targetCid = collectionId;
   const open = annotations.filter((a) => !a.resolved).length;
 
   return (
@@ -102,6 +132,35 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
           </p>
         </div>
         <div class="actions">
+          <div class="pager" role="group" aria-label="Screenshot navigation">
+            <button
+              class="small"
+              type="button"
+              disabled={!prev}
+              data-testid="prev-screenshot"
+              title="Previous screenshot (←)"
+              onClick={() => prev && navigate(`/c/${targetCid}/s/${prev.id}`)}
+            >
+              <IconArrowLeft />
+              Prev
+            </button>
+            {index >= 0 && (
+              <span class="subtle pager-pos" data-testid="pager-position">
+                {index + 1} / {siblings.length}
+              </span>
+            )}
+            <button
+              class="small"
+              type="button"
+              disabled={!next}
+              data-testid="next-screenshot"
+              title="Next screenshot (→)"
+              onClick={() => next && navigate(`/c/${targetCid}/s/${next.id}`)}
+            >
+              Next
+              <IconArrowRight />
+            </button>
+          </div>
           <ShareButton
             testId="share-screenshot"
             variant="primary"
