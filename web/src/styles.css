@@ -367,6 +367,37 @@ main {
   flex-wrap: wrap;
 }
 
+/* Screenshot description under the viewer title, with a quiet edit affordance. */
+.desc-line {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.desc-line em {
+  color: var(--faint);
+}
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 8px;
+}
+button.ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* One-line, ellipsised description on a grid card. */
+.thumb .cap.desc {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pager {
   display: inline-flex;
   align-items: center;

@@ -141,6 +141,22 @@ test('shows the annotation count back on the collection grid', async ({ page }) 
   await expect(page.getByTestId(`annotation-count-${sid}`)).toHaveText('1');
 });
 
+test('edits a screenshot description and shows it on the collection card', async ({ page }) => {
+  const { cid, sid } = await subject(page, 'Descriptions');
+
+  await expect(page.getByTestId('screenshot-description')).toContainText('No description');
+  await page.getByTestId('edit-description').click();
+  await page.getByTestId('description-input').fill('checkout flow, step two');
+  await page.getByTestId('description-save').click();
+  await expect(page.getByTestId('screenshot-description')).toContainText('checkout flow, step two');
+
+  await page.reload();
+  await expect(page.getByTestId('screenshot-description')).toContainText('checkout flow, step two');
+
+  await page.goto(`/c/${cid}`);
+  await expect(page.getByTestId(`screenshot-description-${sid}`)).toHaveText('checkout flow, step two');
+});
+
 test('steps through the collection with next/prev and arrow keys', async ({ page }) => {
   const cid = await createCollection(page, unique('Pager'), 'pager checks');
   const older = await uploadScreenshot(page, cid);

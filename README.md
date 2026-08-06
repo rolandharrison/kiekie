@@ -119,8 +119,8 @@ including creating the service token.
 | `create_collection` | `name`, `description?` | `{collection_id, url}` |
 | `update_collection` | `collection_id`, `name?`, `description?` | ok |
 | `list_collections` | - | most recently updated first, with descriptions and counts |
-| `add_screenshot` | `collection_id`, `file_path`, `filename?` | `{screenshot_id, url, width, height}` |
-| `list_screenshots` | `collection_id` | `[{id, filename, url, annotation_count}]` |
+| `add_screenshot` | `collection_id`, `file_path`, `filename?`, `description?` | `{screenshot_id, url, width, height}` |
+| `list_screenshots` | `collection_id` | `[{id, filename, description, url, annotation_count}]` |
 | `get_annotations` | `screenshot_id` | comments incl. region coords, author, resolved |
 | `get_collection_annotations` | `collection_id` | every comment in the collection |
 

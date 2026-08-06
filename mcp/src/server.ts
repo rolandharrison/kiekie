@@ -119,14 +119,18 @@ export function createServer({ client, mappings, hostname = os.hostname() }: Ser
         collection_id: z.string().min(1),
         file_path: z.string().min(1).describe('Absolute path to the image on the host machine'),
         filename: z.string().optional().describe('Override the stored filename'),
+        description: z
+          .string()
+          .optional()
+          .describe('What this screenshot shows and why it was captured - shown next to the image'),
       },
     },
-    async ({ collection_id, file_path, filename }) => {
+    async ({ collection_id, file_path, filename, description }) => {
       try {
         const resolved = mapPath(file_path, mappings);
         const bytes = await fs.readFile(resolved);
         const name = filename ?? resolved.split('/').pop() ?? 'screenshot.png';
-        const created = await client.addScreenshot(collection_id, bytes, name, hostname);
+        const created = await client.addScreenshot(collection_id, bytes, name, hostname, description);
         return text({
           screenshot_id: created.id,
           url: client.screenshotUrl(created.collection_id, created.id),
@@ -156,6 +160,7 @@ export function createServer({ client, mappings, hostname = os.hostname() }: Ser
           data.screenshots.map((s) => ({
             id: s.id,
             filename: s.filename,
+            description: s.description,
             url: client.screenshotUrl(collection_id, s.id),
             annotation_count: s.annotation_count,
             created_at: s.created_at,

@@ -18,6 +18,8 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
   const [wholeBody, setWholeBody] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [descEditing, setDescEditing] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
 
   async function refresh() {
     const data = await api.getScreenshot(sid);
@@ -31,6 +33,7 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
     setDraft(null);
     setBody('');
     setActiveId(null);
+    setDescEditing(false);
     refresh().catch((e) => setError(e.message));
     api.listCollections().then(setAllCollections).catch(() => setAllCollections([]));
   }, [sid]);
@@ -130,6 +133,53 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             {formatTimestamp(screenshot.created_at)}
             {screenshot.source_host ? ` · from ${screenshot.source_host}` : ''}
           </p>
+          {descEditing ? (
+            <form
+              class="row"
+              style="margin-top:6px;flex-wrap:nowrap"
+              data-testid="description-form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await api.updateScreenshot(sid, { description: descDraft.trim() || null });
+                  setDescEditing(false);
+                  await refresh();
+                } catch (err) {
+                  setError((err as Error).message);
+                }
+              }}
+            >
+              <input
+                type="text"
+                value={descDraft}
+                placeholder="What does this screenshot show?"
+                aria-label="Screenshot description"
+                data-testid="description-input"
+                onInput={(e) => setDescDraft((e.target as HTMLInputElement).value)}
+              />
+              <button class="small primary" type="submit" data-testid="description-save">
+                Save
+              </button>
+              <button class="small" type="button" onClick={() => setDescEditing(false)}>
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <p class="desc-line" data-testid="screenshot-description">
+              {screenshot.description ?? <em>No description</em>}
+              <button
+                class="small ghost"
+                type="button"
+                data-testid="edit-description"
+                onClick={() => {
+                  setDescDraft(screenshot.description ?? '');
+                  setDescEditing(true);
+                }}
+              >
+                Edit
+              </button>
+            </p>
+          )}
         </div>
         <div class="actions">
           <div class="pager" role="group" aria-label="Screenshot navigation">
@@ -261,7 +311,7 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
               onChange={async (e) => {
                 const next = (e.target as HTMLSelectElement).value;
                 if (next === targetCid) return;
-                await api.moveScreenshot(sid, next);
+                await api.updateScreenshot(sid, { collection_id: next });
                 navigate(`/c/${next}/s/${sid}`);
                 await refresh();
               }}

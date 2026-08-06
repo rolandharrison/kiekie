@@ -11,6 +11,7 @@ export interface ScreenshotRow {
   collection_id: string;
   r2_key: string;
   filename: string | null;
+  description: string | null;
   content_type: string | null;
   width: number | null;
   height: number | null;

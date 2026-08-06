@@ -90,6 +90,7 @@ export class KiekieClient {
       screenshots: {
         id: string;
         filename: string | null;
+        description: string | null;
         created_at: string;
         annotation_count: number;
         width: number | null;
@@ -103,11 +104,13 @@ export class KiekieClient {
     bytes: Uint8Array,
     filename: string,
     sourceHost: string,
+    description?: string,
   ) {
     const form = new FormData();
     form.append('file', new Blob([bytes]), filename);
     form.append('filename', filename);
     form.append('source_host', sourceHost);
+    if (description) form.append('description', description);
     return this.request<{ id: string; collection_id: string; width: number | null; height: number | null }>(
       `/api/collections/${collectionId}/screenshots`,
       { method: 'POST', body: form },

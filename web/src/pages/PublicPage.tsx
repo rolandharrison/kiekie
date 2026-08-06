@@ -105,6 +105,11 @@ export function PublicPage({ token, sid }: { token: string; sid?: string }) {
                   All screenshots
                 </a>
               )}
+              {current.description && (
+                <p class="subtle" style="margin:0" data-testid="public-description">
+                  {current.description}
+                </p>
+              )}
               <Annotator
                 src={publicApi.imageUrl(token, current.r2_key)}
                 alt={current.filename ?? current.id}
@@ -144,6 +149,11 @@ export function PublicPage({ token, sid }: { token: string; sid?: string }) {
                         <span class="fn">{s.filename ?? s.id}</span>
                         <span class={`badge${count === 0 ? ' zero' : ''}`}>{count}</span>
                       </div>
+                      {s.description && (
+                        <div class="cap subtle desc" style="padding-top:0" title={s.description}>
+                          {s.description}
+                        </div>
+                      )}
                       <div class="cap subtle" style="padding-top:0">
                         {formatTimestamp(s.created_at)}
                       </div>

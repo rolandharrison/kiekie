@@ -184,6 +184,16 @@ export function CollectionPage({ cid }: { cid: string }) {
                       {s.annotation_count ?? 0}
                     </span>
                   </div>
+                  {s.description && (
+                    <div
+                      class="cap subtle desc"
+                      style="padding-top:0"
+                      title={s.description}
+                      data-testid={`screenshot-description-${s.id}`}
+                    >
+                      {s.description}
+                    </div>
+                  )}
                   <div class="cap subtle" style="padding-top:0">
                     {formatTimestamp(s.created_at)}
                   </div>

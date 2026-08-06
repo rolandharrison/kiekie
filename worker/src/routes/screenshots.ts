@@ -58,6 +58,10 @@ uploads.post('/:cid/screenshots', async (c) => {
   const sourceHostRaw = form.get('source_host');
   const sourceHost = typeof sourceHostRaw === 'string' && sourceHostRaw.trim() ? sourceHostRaw.trim() : null;
 
+  const descriptionRaw = form.get('description');
+  const description =
+    typeof descriptionRaw === 'string' && descriptionRaw.trim() ? descriptionRaw.trim() : null;
+
   const sid = screenshotId();
   const key = `${cid}/${sid}.${extensionFor(contentType, filename)}`;
 
@@ -66,10 +70,10 @@ uploads.post('/:cid/screenshots', async (c) => {
   const ts = now();
   await c.env.DB.prepare(
     `INSERT INTO screenshots
-       (id, collection_id, r2_key, filename, content_type, width, height, source_host, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, collection_id, r2_key, filename, description, content_type, width, height, source_host, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(sid, cid, key, filename, contentType, sniffed.width, sniffed.height, sourceHost, ts)
+    .bind(sid, cid, key, filename, description, contentType, sniffed.width, sniffed.height, sourceHost, ts)
     .run();
 
   await touchCollection(c.env.DB, cid);
@@ -81,6 +85,7 @@ uploads.post('/:cid/screenshots', async (c) => {
       collection_id: cid,
       r2_key: key,
       filename,
+      description,
       content_type: contentType,
       width: sniffed.width,
       height: sniffed.height,
@@ -136,8 +141,19 @@ screenshots.patch('/:sid', async (c) => {
     filename = body.filename.trim();
   }
 
-  await c.env.DB.prepare('UPDATE screenshots SET collection_id = ?, filename = ? WHERE id = ?')
-    .bind(collectionId, filename, sid)
+  // null clears the description; a string sets it.
+  let description = shot.description;
+  if (body.description !== undefined) {
+    if (body.description !== null && typeof body.description !== 'string') {
+      return c.json({ error: 'description must be a string or null' }, 400);
+    }
+    description = typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
+  }
+
+  await c.env.DB.prepare(
+    'UPDATE screenshots SET collection_id = ?, filename = ?, description = ? WHERE id = ?',
+  )
+    .bind(collectionId, filename, description, sid)
     .run();
 
   // Both ends of a move changed, so both surface as recently active.

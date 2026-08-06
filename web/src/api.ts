@@ -12,6 +12,7 @@ export interface Screenshot {
   collection_id: string;
   r2_key: string;
   filename: string | null;
+  description: string | null;
   content_type: string | null;
   width: number | null;
   height: number | null;
@@ -114,8 +115,10 @@ export const api = {
       `/api/screenshots/${sid}`,
     ),
 
-  moveScreenshot: (sid: string, collectionId: string) =>
-    request<{ screenshot: Screenshot }>(`/api/screenshots/${sid}`, json('PATCH', { collection_id: collectionId })),
+  updateScreenshot: (
+    sid: string,
+    patch: { collection_id?: string; filename?: string; description?: string | null },
+  ) => request<{ screenshot: Screenshot }>(`/api/screenshots/${sid}`, json('PATCH', patch)),
 
   deleteScreenshot: (sid: string) =>
     request<{ ok: true }>(`/api/screenshots/${sid}`, { method: 'DELETE' }),

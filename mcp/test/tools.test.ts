@@ -211,6 +211,23 @@ describe('add_screenshot', () => {
     expect((recorded[0].body as FormData).get('filename')).toBe('login-page.png');
   });
 
+  it('forwards the description to the upload', async () => {
+    await fs.writeFile(path.join(tmpDir, 'shot.png'), Buffer.from([1, 2, 3]));
+    responder = () => ({ body: { id: 'ab12cd34', collection_id: 'kx3f9a' } });
+    const mcp = await connect(`C:\\Dev=${tmpDir.replace(/\\/g, '/')}`);
+
+    await mcp.callTool({
+      name: 'add_screenshot',
+      arguments: {
+        collection_id: 'kx3f9a',
+        file_path: 'C:\\Dev\\shot.png',
+        description: 'login page after the retry fix',
+      },
+    });
+
+    expect((recorded[0].body as FormData).get('description')).toBe('login page after the retry fix');
+  });
+
   it('tells the agent where screenshots must live when the path is unmapped', async () => {
     const mcp = await connect('C:\\Dev=/host/dev');
     const result: any = await mcp.callTool({
@@ -242,7 +259,7 @@ describe('list_screenshots', () => {
       body: {
         collection: { id: 'kx3f9a', name: 'UI' },
         screenshots: [
-          { id: 'ab12cd34', filename: 'home.png', created_at: '2026-07-31 09:00:00', annotation_count: 2, width: 1, height: 1 },
+          { id: 'ab12cd34', filename: 'home.png', description: 'the landing page', created_at: '2026-07-31 09:00:00', annotation_count: 2, width: 1, height: 1 },
         ],
       },
     });
@@ -253,6 +270,7 @@ describe('list_screenshots', () => {
       {
         id: 'ab12cd34',
         filename: 'home.png',
+        description: 'the landing page',
         url: 'https://shots.example.com/c/kx3f9a/s/ab12cd34',
         annotation_count: 2,
         created_at: '2026-07-31 09:00:00',

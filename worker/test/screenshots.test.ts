@@ -38,6 +38,25 @@ describe('screenshot upload', () => {
     expect(object).not.toBeNull();
   });
 
+  it('stores, edits and clears a description', async () => {
+    const col = await createCollection();
+    const form = new FormData();
+    form.append('file', new File([pngBytes()], 'login.png', { type: 'image/png' }));
+    form.append('description', 'login page after the retry fix');
+    const up = await api(`/api/collections/${col.id}/screenshots`, { method: 'POST', body: form });
+    expect(up.status).toBe(201);
+    expect(up.body.description).toBe('login page after the retry fix');
+
+    const read = await api(`/api/screenshots/${up.body.id}`);
+    expect(read.body.screenshot.description).toBe('login page after the retry fix');
+
+    const patched = await api(`/api/screenshots/${up.body.id}`, patchJson({ description: 'revised wording' }));
+    expect(patched.body.screenshot.description).toBe('revised wording');
+
+    const cleared = await api(`/api/screenshots/${up.body.id}`, patchJson({ description: null }));
+    expect(cleared.body.screenshot.description).toBeNull();
+  });
+
   it('bumps the collection updated_at', async () => {
     const col = await createCollection();
     const before = (await api(`/api/collections/${col.id}`)).body.collection.updated_at;
