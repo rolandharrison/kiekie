@@ -15,8 +15,14 @@ async function subject(page: import('@playwright/test').Page, label: string) {
   return { cid, sid };
 }
 
+/** Annotation is opt-in; flip the switch on before drawing. */
+async function enableAnnotate(page: import('@playwright/test').Page) {
+  await page.getByTestId('toggle-annotate').check();
+}
+
 test('drops a pin comment that survives a reload', async ({ page }) => {
   await subject(page, 'Pins');
+  await enableAnnotate(page);
 
   await clickImageAt(page, 0.5, 0.4);
   await expect(page.getByTestId('draft-pin')).toBeVisible();
@@ -42,6 +48,7 @@ test('drops a pin comment that survives a reload', async ({ page }) => {
 
 test('draws a rectangle comment over a region', async ({ page }) => {
   await subject(page, 'Regions');
+  await enableAnnotate(page);
 
   await dragImage(page, [0.2, 0.2], [0.6, 0.5]);
   await expect(page.getByTestId('draft-region')).toBeVisible();
@@ -62,18 +69,23 @@ test('draws a rectangle comment over a region', async ({ page }) => {
   expect(drawn.width / box.width).toBeCloseTo(0.4, 1);
 });
 
-test('zooms and pans without creating annotations, and offers a download', async ({ page }) => {
+test('with annotation off, dragging never annotates; zoom, pan and download work', async ({ page }) => {
   await subject(page, 'Zoom');
+
+  // Annotation is off by default: a drag on the image must not start a region,
+  // so a scroll/swipe is never hijacked.
+  await expect(page.getByTestId('toggle-annotate')).not.toBeChecked();
+  await dragImage(page, [0.2, 0.2], [0.6, 0.5]);
+  await expect(page.getByTestId('draft-region')).toHaveCount(0);
+  await expect(page.getByTestId('region-composer')).toHaveCount(0);
 
   await page.getByTestId('zoom-in').click();
   await page.getByTestId('zoom-in').click();
   await expect(page.getByTestId('zoom-reset')).toHaveText('196%');
 
-  // In pan mode a drag moves the view instead of drawing a region.
-  await page.getByTestId('tool-pan').click();
+  // Zoomed in with annotation still off, a drag pans the view instead.
   await dragImage(page, [0.7, 0.7], [0.3, 0.3]);
   await expect(page.getByTestId('draft-region')).toHaveCount(0);
-  await expect(page.getByTestId('region-composer')).toHaveCount(0);
   const transform = await page
     .locator('.canvas-content')
     .evaluate((el) => (el as HTMLElement).style.transform);
@@ -84,8 +96,8 @@ test('zooms and pans without creating annotations, and offers a download', async
 
   await expect(page.getByTestId('download-image')).toHaveAttribute('download', /.+/);
 
-  // Back in comment mode, annotating still works at any zoom.
-  await page.getByTestId('tool-comment').click();
+  // Turn annotation on and it works again.
+  await enableAnnotate(page);
   await clickImageAt(page, 0.5, 0.5);
   await expect(page.getByTestId('draft-pin')).toBeVisible();
 });

@@ -771,10 +771,6 @@ input[type='file']::file-selector-button {
 .canvas-toolbar .seg button + button {
   border-left: 1px solid var(--line);
 }
-.canvas-toolbar .seg button.on {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 .canvas-toolbar .zoom-label {
   min-width: 54px;
   font-variant-numeric: tabular-nums;
@@ -852,6 +848,67 @@ input[type='file']::file-selector-button {
   border-radius: 5px;
   padding: 1px 6px;
   color: var(--text);
+}
+
+/* Annotation is opt-in: this row sits under the image with the enable switch
+   and an adaptive hint. */
+.annotate-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.annotate-bar .hint {
+  min-width: 0;
+}
+
+/* A compact iOS-style switch built from a checkbox, so keyboard focus and the
+   label association come for free. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  user-select: none;
+}
+.switch input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  flex: none;
+  border-radius: var(--r-full);
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.16s var(--ease), background 0.16s var(--ease);
+}
+.switch input:checked {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+}
+.switch input:checked::after {
+  transform: translateX(16px);
+  background: var(--on-accent);
+}
+.switch input:focus-visible {
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 /* ── Comments ───────────────────────────────────────────────────────────── */

@@ -20,6 +20,12 @@ interface Props {
   onDraft?: (region: Region | null) => void;
   /** When set, a download button appears in the toolbar. */
   downloadName?: string;
+  /**
+   * Annotation is opt-in. Off (the default) the image behaves like a plain
+   * viewer — drag scrolls the page on touch and pans when zoomed — so it never
+   * hijacks a scroll gesture. On, drag/click creates pins and regions.
+   */
+  annotating?: boolean;
 }
 
 /** Movement below this (in px) counts as a click, i.e. a pin rather than a rect. */
@@ -69,15 +75,18 @@ export function Annotator({
   onSelect,
   onDraft,
   downloadName,
+  annotating = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [live, setLive] = useState<Region | null>(null);
   const [view, setView] = useState<View>(FIT);
-  const [tool, setTool] = useState<'comment' | 'pan'>(readOnly ? 'pan' : 'comment');
   const panFrom = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+
+  // Pan (rather than annotate) whenever annotation is off or the view is read-only.
+  const drawing = !readOnly && annotating;
 
   useEffect(() => {
     setView(FIT);
@@ -101,15 +110,15 @@ export function Annotator({
   }
 
   function onPointerDown(event: PointerEvent) {
-    // Middle-drag always pans; left-drag pans in pan mode and annotates otherwise.
-    const pans = event.button === 1 || (event.button === 0 && (readOnly || tool === 'pan'));
+    // Middle-drag always pans; left-drag annotates only when drawing is on.
+    const pans = event.button === 1 || (event.button === 0 && !drawing);
     if (pans) {
       // At fit zoom there is nothing to pan — leave the gesture to the browser
       // so a touch-drag scrolls the page instead of being swallowed.
       if (view.z === 1) return;
       panFrom.current = { px: event.clientX, py: event.clientY, x: view.x, y: view.y };
       setIsPanning(true);
-    } else if (!readOnly && event.button === 0) {
+    } else if (drawing && event.button === 0) {
       const p = pointFrom(event);
       setDragStart({ x: p.x, y: p.y });
       setLive({ x: p.x, y: p.y, w: 0, h: 0 });
@@ -173,36 +182,15 @@ export function Annotator({
   }
 
   const preview = live ?? draft ?? null;
-  const panMode = readOnly || tool === 'pan';
-  const pannable = panMode && view.z > 1;
-  const wrapClass = `canvas-wrap${pannable ? ' pannable' : ''}${panMode ? '' : ' drawing'}${isPanning ? ' is-panning' : ''}`;
-  // Comment mode needs raw touch input to draw; pan mode only needs it once
-  // zoomed in. Otherwise let touches scroll the page normally.
-  const touchAction = panMode && view.z === 1 ? 'auto' : 'none';
+  const pannable = !drawing && view.z > 1;
+  const wrapClass = `canvas-wrap${pannable ? ' pannable' : ''}${drawing ? ' drawing' : ''}${isPanning ? ' is-panning' : ''}`;
+  // Drawing needs raw touch input; panning only needs it once zoomed in.
+  // Otherwise let touches scroll the page normally.
+  const touchAction = !drawing && view.z === 1 ? 'auto' : 'none';
 
   return (
     <div class="stack" style="gap:8px">
       <div class="canvas-toolbar" data-testid="canvas-toolbar">
-        {!readOnly && (
-          <div class="seg" role="group" aria-label="Tool">
-            <button
-              type="button"
-              class={tool === 'comment' ? 'on' : ''}
-              onClick={() => setTool('comment')}
-              data-testid="tool-comment"
-            >
-              Comment
-            </button>
-            <button
-              type="button"
-              class={tool === 'pan' ? 'on' : ''}
-              onClick={() => setTool('pan')}
-              data-testid="tool-pan"
-            >
-              Pan
-            </button>
-          </div>
-        )}
         <div class="seg" role="group" aria-label="Zoom">
           <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label="Zoom out" data-testid="zoom-out">
             −

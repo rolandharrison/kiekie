@@ -20,6 +20,8 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
   const [error, setError] = useState<string | null>(null);
   const [descEditing, setDescEditing] = useState(false);
   const [descDraft, setDescDraft] = useState('');
+  // Annotation is off by default so the image never fights a scroll/swipe.
+  const [annotating, setAnnotating] = useState(false);
 
   async function refresh() {
     const data = await api.getScreenshot(sid);
@@ -34,6 +36,7 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
     setBody('');
     setActiveId(null);
     setDescEditing(false);
+    setAnnotating(false);
     refresh().catch((e) => setError(e.message));
     api.listCollections().then(setAllCollections).catch(() => setAllCollections([]));
   }, [sid]);
@@ -230,13 +233,35 @@ export function ViewerPage({ cid, sid }: { cid: string; sid: string }) {
             onSelect={setActiveId}
             onDraft={setDraft}
             downloadName={screenshot.filename ?? `${screenshot.id}.png`}
+            annotating={annotating}
           />
-          <p class="hint">
-            <span>
-              <kbd>Click</kbd> the image to drop a pin, or <kbd>drag</kbd> to mark a region.{' '}
-              <kbd>Scroll</kbd> to zoom; switch to Pan to move around without commenting.
+          <div class="annotate-bar">
+            <label class="switch" title="Turn on to leave comments on the image">
+              <input
+                type="checkbox"
+                checked={annotating}
+                data-testid="toggle-annotate"
+                onChange={(e) => {
+                  const on = (e.target as HTMLInputElement).checked;
+                  setAnnotating(on);
+                  if (!on) {
+                    setDraft(null);
+                    setBody('');
+                  }
+                }}
+              />
+              <span>Annotate</span>
+            </label>
+            <span class="hint" data-testid="annotate-hint">
+              {annotating ? (
+                <span>
+                  <kbd>Click</kbd> the image to drop a pin, or <kbd>drag</kbd> to mark a region.
+                </span>
+              ) : (
+                <span>Scroll and zoom freely. Turn on Annotate to leave a comment.</span>
+              )}
             </span>
-          </p>
+          </div>
 
           {draft && (
             <form class="card panel stack" onSubmit={submitRegionComment} data-testid="region-composer">
