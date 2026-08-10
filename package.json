@@ -21,8 +21,8 @@
     "attach:domain": "node scripts/attach-domain.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "@playwright/test": "^1.62.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

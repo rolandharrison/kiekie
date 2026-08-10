@@ -1,4 +1,4 @@
-import { fetchMock } from 'cloudflare:test';
+import { vi } from 'vitest';
 import { resetJwksCache } from '../src/access';
 
 export const TEAM_DOMAIN = 'test-tenant.cloudflareaccess.com';
@@ -88,19 +88,36 @@ export async function mintToken(options: TokenOptions = {}): Promise<string> {
   return `${signingInput}.${b64url(signature)}`;
 }
 
-/** Publish the test tenant's JWKS so the Worker can verify what we mint. */
+/**
+ * Publish the test tenant's JWKS so the Worker can verify what we mint.
+ *
+ * vitest-pool-workers ≥0.20 dropped the `fetchMock` export, but it runs the
+ * Worker in the same isolate as the test, so stubbing the global `fetch` here
+ * intercepts the Worker's outbound call to the Access certs endpoint. Inbound
+ * requests go through `worker.fetch(...)` directly (see helpers), so they are
+ * unaffected. Call `unstubJwks()` in an afterEach to restore.
+ */
 export async function stubJwks() {
   resetJwksCache();
   const jwk = (await crypto.subtle.exportKey('jwk', (await keys()).publicKey)) as JsonWebKey;
-  fetchMock.activate();
-  fetchMock.disableNetConnect();
-  fetchMock
-    .get(`https://${TEAM_DOMAIN}`)
-    .intercept({ path: '/cdn-cgi/access/certs' })
-    .reply(200, JSON.stringify({ keys: [{ ...jwk, kid: KID, alg: 'RS256', use: 'sig' }] }), {
-      headers: { 'content-type': 'application/json' },
-    })
-    .persist();
+  const body = JSON.stringify({ keys: [{ ...jwk, kid: KID, alg: 'RS256', use: 'sig' }] });
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/cdn-cgi/access/certs')) {
+        return new Response(body, { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      throw new Error(`unexpected outbound fetch in test: ${url}`);
+    }),
+  );
+}
+
+/** Restore the real global fetch after a `stubJwks()`. */
+export function unstubJwks() {
+  vi.unstubAllGlobals();
 }
 
 export function accessHeaders(token: string): Record<string, string> {

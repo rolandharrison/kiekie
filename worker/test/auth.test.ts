@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import { api, call, createCollection, pngBytes, postJson, useDatabase } from './helpers';
-import { AUD, TEAM_DOMAIN, accessHeaders, mintToken, stubJwks } from './access-jwt';
+import { AUD, TEAM_DOMAIN, accessHeaders, mintToken, stubJwks, unstubJwks } from './access-jwt';
 
 useDatabase();
 
@@ -11,6 +11,7 @@ afterEach(() => {
   env.ACCESS_TEAM_DOMAIN = original.team;
   env.ACCESS_AUD = original.aud;
   env.DEV_IDENTITY = original.dev;
+  unstubJwks();
 });
 
 /** Put the Worker in production mode: behind a real Access tenant. */
