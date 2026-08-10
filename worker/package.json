@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "hono": "^4.6.14"
+    "hono": "^4.13.1"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.5.35",
