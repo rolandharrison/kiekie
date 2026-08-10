@@ -164,22 +164,35 @@ Prefer the region a comment points at (normalised x/y/w/h) to locate what I mean
 
 ### 2. Capture screenshots (Playwright CLI)
 
-Playwright ships a one-shot `screenshot` command - no test file needed. Install
-the browser once, then the agent runs it per page and viewport:
+The [Playwright CLI](https://github.com/microsoft/playwright-cli)
+(`@playwright/cli`) is a stateful, agent-oriented browser driver - distinct from
+the `npx playwright` test runner. You `open` a page into a named session, then
+drive it and capture with terse commands whose output is easy for an agent to
+consume; the browser (cookies, storage, current page) persists between calls.
 
 ```bash
-npx playwright install chromium
+npm install -g @playwright/cli@latest
 
-# Desktop and mobile shots of a page, saved under the mounted folder
-npx playwright screenshot --viewport-size=1280,800 \
-  http://localhost:3000/pricing  .kiekie/pricing-desktop.png
-npx playwright screenshot --device="iPhone 13" \
-  http://localhost:3000/pricing  .kiekie/pricing-mobile.png
+# Desktop: open the page in the default session, then screenshot it
+playwright-cli open http://localhost:3000/pricing
+playwright-cli screenshot --filename=.kiekie/pricing-desktop.png
 
-# Whole scrollable page rather than just the fold
-npx playwright screenshot --full-page --viewport-size=1280,800 \
-  http://localhost:3000/settings  .kiekie/settings-desktop.png
+# Mobile: a separate named session emulating a device
+playwright-cli -s=mobile open --device="iPhone 15" http://localhost:3000/pricing
+playwright-cli -s=mobile screenshot --filename=.kiekie/pricing-mobile.png
+
+# Interact, then capture the result. `snapshot` prints the page as YAML with
+# element refs (e5, e12, ...) that click/fill/type take.
+playwright-cli snapshot
+playwright-cli click e12                 # the annual-billing toggle
+playwright-cli screenshot --filename=.kiekie/pricing-annual.png
+
+playwright-cli close-all                  # tear the sessions down when done
 ```
+
+Save the files under the folder mounted into the MCP container (`.kiekie/` in a
+repo under your mounted root), so `add_screenshot` can read them. If the global
+`playwright-cli` command is not on PATH, invoke it as `npx playwright cli ...`.
 
 ### 3. The review loop
 
