@@ -4,16 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "node scripts/ensure-assets.mjs && wrangler dev",
     "deploy": "wrangler deploy --env production",
     "migrate:local": "wrangler d1 migrations apply kiekie --local",
     "migrate:remote": "wrangler d1 migrations apply kiekie --remote --env production",
     "e2e:migrate": "wrangler d1 migrations apply kiekie --local --persist-to .e2e-state",
     "e2e:dev": "wrangler dev --port 8788 --persist-to .e2e-state",
     "typecheck": "tsc --noEmit",
-    "pretest": "node scripts/ensure-assets.mjs",
-    "predev": "node scripts/ensure-assets.mjs",
-    "test": "vitest run"
+    "test": "node scripts/ensure-assets.mjs && vitest run"
   },
   "dependencies": {
     "hono": "^4.13.1"
