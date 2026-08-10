@@ -17,6 +17,26 @@ import {
 /** 25 MB — comfortably above any screenshot, well under the Worker body limit. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
+/**
+ * Caps on the free-text fields. They are read back in bulk by the collection
+ * grid and the public share payload (`SELECT s.*`), so an unbounded value would
+ * bloat every listing that includes the row. Generous for real captions,
+ * far below anything that would matter.
+ */
+const MAX_FILENAME = 512;
+const MAX_DESCRIPTION = 2000;
+const MAX_SOURCE_HOST = 256;
+
+/** Trim, enforce a max length, and collapse empty to null. Returns undefined
+    when the value is present but too long, so callers can 400. */
+function boundedText(value: unknown, max: number): string | null | undefined {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > max) return undefined;
+  return trimmed;
+}
+
 export const uploads = new Hono<AppEnv>();
 
 uploads.post('/:cid/screenshots', async (c) => {
@@ -41,9 +61,9 @@ uploads.post('/:cid/screenshots', async (c) => {
   if (bytes.byteLength === 0) return c.json({ error: 'file is empty' }, 400);
   if (bytes.byteLength > MAX_BYTES) return c.json({ error: 'file too large (max 25MB)' }, 413);
 
-  const formName = form.get('filename');
-  const filename =
-    (typeof formName === 'string' && formName.trim()) || file.name || 'screenshot.png';
+  const boundedName = boundedText(form.get('filename'), MAX_FILENAME);
+  if (boundedName === undefined) return c.json({ error: `filename too long (max ${MAX_FILENAME})` }, 400);
+  const filename = boundedName || file.name?.slice(0, MAX_FILENAME) || 'screenshot.png';
 
   // Only formats verified by magic bytes are accepted — the caller-declared
   // type is never trusted. Trusting it would let an "image/svg+xml" upload
@@ -55,12 +75,10 @@ uploads.post('/:cid/screenshots', async (c) => {
     return c.json({ error: 'unsupported file type; expected a PNG, JPEG, GIF or WebP image' }, 400);
   }
 
-  const sourceHostRaw = form.get('source_host');
-  const sourceHost = typeof sourceHostRaw === 'string' && sourceHostRaw.trim() ? sourceHostRaw.trim() : null;
+  const sourceHost = boundedText(form.get('source_host'), MAX_SOURCE_HOST) ?? null;
 
-  const descriptionRaw = form.get('description');
-  const description =
-    typeof descriptionRaw === 'string' && descriptionRaw.trim() ? descriptionRaw.trim() : null;
+  const description = boundedText(form.get('description'), MAX_DESCRIPTION);
+  if (description === undefined) return c.json({ error: `description too long (max ${MAX_DESCRIPTION})` }, 400);
 
   const sid = screenshotId();
   const key = `${cid}/${sid}.${extensionFor(contentType, filename)}`;
@@ -138,6 +156,9 @@ screenshots.patch('/:sid', async (c) => {
     if (typeof body.filename !== 'string' || !body.filename.trim()) {
       return c.json({ error: 'filename must be a non-empty string' }, 400);
     }
+    if (body.filename.trim().length > MAX_FILENAME) {
+      return c.json({ error: `filename too long (max ${MAX_FILENAME})` }, 400);
+    }
     filename = body.filename.trim();
   }
 
@@ -146,6 +167,9 @@ screenshots.patch('/:sid', async (c) => {
   if (body.description !== undefined) {
     if (body.description !== null && typeof body.description !== 'string') {
       return c.json({ error: 'description must be a string or null' }, 400);
+    }
+    if (typeof body.description === 'string' && body.description.trim().length > MAX_DESCRIPTION) {
+      return c.json({ error: `description too long (max ${MAX_DESCRIPTION})` }, 400);
     }
     description = typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
   }
