@@ -127,6 +127,87 @@ including creating the service token.
 Region coordinates are normalised 0–1. A zero-size region is a pin; all-null
 coordinates mean the comment is about the whole image.
 
+## Using it with a coding agent
+
+The point of kiekie is a tight visual-review loop: the agent changes some UI,
+captures screenshots, registers them, you scribble on the images and leave
+comments, and the agent reads that feedback straight back and acts on it. Here
+is how to wire that into day-to-day work with Claude Code.
+
+### 1. Tell the agent about it (CLAUDE.md)
+
+Drop a block like this into the `CLAUDE.md` of the project you are working on
+(not this repo - the app you are building). It teaches the agent when and how to
+use the kiekie tools:
+
+```markdown
+## Visual review with kiekie
+
+When you finish a user-facing UI change, put it up for review before calling it done:
+
+1. Run the app locally (`npm run dev`) and capture the affected screens with the
+   Playwright CLI at desktop and mobile widths, into `.kiekie/` in this repo
+   (that folder is under the host directory mounted into the MCP container, so
+   the MCP can read the files - anywhere outside it is rejected).
+2. Create one collection per branch/PR with `create_collection`. Name it after
+   the branch and write a `description` summarising the change so I (and other
+   agents) can tell collections apart.
+3. Add every screenshot with `add_screenshot`, giving each a `description` of
+   what it shows and which viewport (e.g. "Pricing page, 390x844 mobile").
+4. Reply with the collection URL and stop. Do not assume the change is approved.
+5. When I say I have reviewed, call `get_collection_annotations`, apply every
+   open comment, then re-capture and add the updated screenshots to the same
+   collection so the before/after lives together.
+
+Prefer the region a comment points at (normalised x/y/w/h) to locate what I mean.
+```
+
+### 2. Capture screenshots (Playwright CLI)
+
+Playwright ships a one-shot `screenshot` command - no test file needed. Install
+the browser once, then the agent runs it per page and viewport:
+
+```bash
+npx playwright install chromium
+
+# Desktop and mobile shots of a page, saved under the mounted folder
+npx playwright screenshot --viewport-size=1280,800 \
+  http://localhost:3000/pricing  .kiekie/pricing-desktop.png
+npx playwright screenshot --device="iPhone 13" \
+  http://localhost:3000/pricing  .kiekie/pricing-mobile.png
+
+# Whole scrollable page rather than just the fold
+npx playwright screenshot --full-page --viewport-size=1280,800 \
+  http://localhost:3000/settings  .kiekie/settings-desktop.png
+```
+
+### 3. The review loop
+
+A single cycle, showing who does what:
+
+```
+agent  create_collection("feat/pricing-tiers", "New 3-tier pricing card + annual toggle")
+         -> { collection_id: "ab12cd", url: "https://<your-host>/c/ab12cd" }
+agent  add_screenshot("ab12cd", ".kiekie/pricing-desktop.png", description: "Pricing, 1280 desktop")
+agent  add_screenshot("ab12cd", ".kiekie/pricing-mobile.png",  description: "Pricing, 390x844 mobile")
+agent  "Ready for review: https://<your-host>/c/ab12cd"
+
+you    open the URL, turn on Annotate, drop a pin on the annual toggle:
+       "make this the default", and a region on the card: "price is cut off at 390px"
+
+agent  get_collection_annotations("ab12cd")
+         -> [ { body: "make this the default", x: 0.62, y: 0.31, ... },
+              { body: "price is cut off at 390px", x: 0.1, y: 0.4, w: 0.3, h: 0.08, ... } ]
+agent  applies both, re-captures, add_screenshot(...) the updated shots
+```
+
+You review while signed in through Access. To get feedback from someone who is
+**not** on your Access allow-list (a client, a designer), open the collection or
+a single screenshot and hit **Share** in the viewer - that mints a read-only
+`/p/{token}` link that works with no login, which you paste to them. Their
+comments come back through `get_collection_annotations` just the same, and you
+can revoke the link (or let it expire) when the review is over.
+
 ## Tests
 
 ```bash
