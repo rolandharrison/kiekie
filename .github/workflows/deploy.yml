@@ -7,6 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least privilege for the automatic GITHUB_TOKEN: this pipeline only reads the
+# repo and talks to Cloudflare via its own secrets, so no write scopes are
+# needed. Deploy secrets are additionally gated to pushes on main (see below),
+# so a fork PR never sees them.
+permissions:
+  contents: read
+
 concurrency:
   # Never let two deploys race on the same Worker or D1 database.
   group: deploy-${{ github.ref }}
