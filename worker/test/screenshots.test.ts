@@ -57,6 +57,21 @@ describe('screenshot upload', () => {
     expect(cleared.body.screenshot.description).toBeNull();
   });
 
+  it('rejects an over-long description on upload and on patch', async () => {
+    const col = await createCollection();
+    const huge = 'x'.repeat(2001);
+
+    const form = new FormData();
+    form.append('file', new File([pngBytes()], 'a.png', { type: 'image/png' }));
+    form.append('description', huge);
+    const up = await api(`/api/collections/${col.id}/screenshots`, { method: 'POST', body: form });
+    expect(up.status).toBe(400);
+
+    const shot = await uploadScreenshot(col.id);
+    const patched = await api(`/api/screenshots/${shot.id}`, patchJson({ description: huge }));
+    expect(patched.status).toBe(400);
+  });
+
   it('bumps the collection updated_at', async () => {
     const col = await createCollection();
     const before = (await api(`/api/collections/${col.id}`)).body.collection.updated_at;
