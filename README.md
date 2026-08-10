@@ -47,92 +47,14 @@ Curious how it is built? See [`IMPLEMENTATION.md`](./IMPLEMENTATION.md).
   admits has full read/write, so only add people and tokens you trust.
 - Works well on a phone, in dark or light theme.
 
-## Layout
-
-| Path | What |
-|---|---|
-| `worker/` | Cloudflare Worker - JSON API, image serving, share routes, static host |
-| `web/` | The web UI, built into `worker/public` so there is one deployable |
-| `mcp/` | Local MCP server (Node + Docker) that Claude Code connects to |
-| `e2e/` | Playwright specs driving a real browser against a local Worker |
-
-## Quick start (local)
-
-```bash
-npm install
-npm run build --workspace web        # SPA -> worker/public
-npm run migrate:local                # apply D1 schema to the local simulator
-npm run dev                          # wrangler dev on http://localhost:8787
-```
-
-Locally there is no Cloudflare Access; the Worker uses the `DEV_IDENTITY` var
-(`dev@localhost`) as the signed-in user, so the whole app works without any
-Cloudflare account.
-
-## Deploying
-
-Deploys go out automatically from GitHub Actions on every push to `main`:
-typecheck, unit tests and browser e2e first, then migrations, deploy and an
-authenticated smoke test against the live site. The production hostname and
-Access tenant are kept out of the repo (Worker and repo secrets).
-
-To stand up your own instance on another Cloudflare account:
-
-```bash
-cp .env.example .env.local          # fill in the Cloudflare token + account
-npx wrangler d1 create kiekie       # paste database_id into worker/wrangler.toml
-npx wrangler r2 bucket create kiekie-screenshots
-npm run attach:domain your-host.example
-# In Zero Trust > Access > Applications, create:
-#   1. a gated app on the whole host  -> Allow (your email) + service token
-#   2. a bypass app on <host>/p       -> public share links
-#   3. a bypass app on <host>/assets  -> the web bundle on share pages
-# then set the WEB_BASE / ACCESS_TEAM_DOMAIN / ACCESS_AUD Worker secrets
-npm run deploy
-```
-
-Images stay in a private bucket, reachable only through the authenticated
-image route or a share link scoped to what that link actually shares.
-
-## Running the MCP server
-
-```bash
-cp mcp/.env.example mcp/.env    # fill in the Access service token
-docker compose -f mcp/docker-compose.yml up -d --build
-curl http://127.0.0.1:8899/health
-```
-
-Then, once per machine:
-
-```bash
-claude mcp add --transport http --scope user kiekie http://127.0.0.1:8899/mcp
-```
-
-The container sees one host folder, read-only, and the port is published on
-`127.0.0.1` only. [`INSTALL.md`](./INSTALL.md) walks through the details,
-including creating the service token.
-
-### Tools
-
-| Tool | Args | Returns |
-|---|---|---|
-| `create_collection` | `name`, `description?` | `{collection_id, url}` |
-| `update_collection` | `collection_id`, `name?`, `description?` | ok |
-| `list_collections` | - | most recently updated first, with descriptions and counts |
-| `add_screenshot` | `collection_id`, `file_path`, `filename?`, `description?` | `{screenshot_id, url, width, height}` |
-| `list_screenshots` | `collection_id` | `[{id, filename, description, url, annotation_count}]` |
-| `get_annotations` | `screenshot_id` | comments incl. region coords, author, resolved |
-| `get_collection_annotations` | `collection_id` | every comment in the collection |
-
-Region coordinates are normalised 0–1. A zero-size region is a pin; all-null
-coordinates mean the comment is about the whole image.
-
 ## Using it with a coding agent
 
-The point of kiekie is a tight visual-review loop: the agent changes some UI,
-captures screenshots, registers them, you scribble on the images and leave
-comments, and the agent reads that feedback straight back and acts on it. Here
-is how to wire that into day-to-day work with Claude Code.
+This is the point of kiekie: a tight visual-review loop where the agent changes
+some UI, captures screenshots, registers them, you scribble on the images and
+leave comments, and the agent reads that feedback straight back and acts on it.
+Here is how to wire it into day-to-day work with Claude Code. It assumes the MCP
+server is running and connected (see [Running the MCP server](#running-the-mcp-server))
+and uses the tools from the [Tools](#tools) table.
 
 ### 1. Tell the agent about it (CLAUDE.md)
 
@@ -220,6 +142,86 @@ a single screenshot and hit **Share** in the viewer - that mints a read-only
 `/p/{token}` link that works with no login, which you paste to them. Their
 comments come back through `get_collection_annotations` just the same, and you
 can revoke the link (or let it expire) when the review is over.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `worker/` | Cloudflare Worker - JSON API, image serving, share routes, static host |
+| `web/` | The web UI, built into `worker/public` so there is one deployable |
+| `mcp/` | Local MCP server (Node + Docker) that Claude Code connects to |
+| `e2e/` | Playwright specs driving a real browser against a local Worker |
+
+## Quick start (local)
+
+```bash
+npm install
+npm run build --workspace web        # SPA -> worker/public
+npm run migrate:local                # apply D1 schema to the local simulator
+npm run dev                          # wrangler dev on http://localhost:8787
+```
+
+Locally there is no Cloudflare Access; the Worker uses the `DEV_IDENTITY` var
+(`dev@localhost`) as the signed-in user, so the whole app works without any
+Cloudflare account.
+
+## Deploying
+
+Deploys go out automatically from GitHub Actions on every push to `main`:
+typecheck, unit tests and browser e2e first, then migrations, deploy and an
+authenticated smoke test against the live site. The production hostname and
+Access tenant are kept out of the repo (Worker and repo secrets).
+
+To stand up your own instance on another Cloudflare account:
+
+```bash
+cp .env.example .env.local          # fill in the Cloudflare token + account
+npx wrangler d1 create kiekie       # paste database_id into worker/wrangler.toml
+npx wrangler r2 bucket create kiekie-screenshots
+npm run attach:domain your-host.example
+# In Zero Trust > Access > Applications, create:
+#   1. a gated app on the whole host  -> Allow (your email) + service token
+#   2. a bypass app on <host>/p       -> public share links
+#   3. a bypass app on <host>/assets  -> the web bundle on share pages
+# then set the WEB_BASE / ACCESS_TEAM_DOMAIN / ACCESS_AUD Worker secrets
+npm run deploy
+```
+
+Images stay in a private bucket, reachable only through the authenticated
+image route or a share link scoped to what that link actually shares.
+
+## Running the MCP server
+
+```bash
+cp mcp/.env.example mcp/.env    # fill in the Access service token
+docker compose -f mcp/docker-compose.yml up -d --build
+curl http://127.0.0.1:8899/health
+```
+
+Then, once per machine:
+
+```bash
+claude mcp add --transport http --scope user kiekie http://127.0.0.1:8899/mcp
+```
+
+The container sees one host folder, read-only, and the port is published on
+`127.0.0.1` only. [`INSTALL.md`](./INSTALL.md) walks through the details,
+including creating the service token.
+
+### Tools
+
+| Tool | Args | Returns |
+|---|---|---|
+| `create_collection` | `name`, `description?` | `{collection_id, url}` |
+| `update_collection` | `collection_id`, `name?`, `description?` | ok |
+| `list_collections` | - | most recently updated first, with descriptions and counts |
+| `add_screenshot` | `collection_id`, `file_path`, `filename?`, `description?` | `{screenshot_id, url, width, height}` |
+| `list_screenshots` | `collection_id` | `[{id, filename, description, url, annotation_count}]` |
+| `get_annotations` | `screenshot_id` | comments incl. region coords, author, resolved |
+| `get_collection_annotations` | `collection_id` | every comment in the collection |
+
+Region coordinates are normalised 0–1. A zero-size region is a pin; all-null
+coordinates mean the comment is about the whole image.
 
 ## Tests
 
