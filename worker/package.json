@@ -14,7 +14,7 @@
     "test": "node scripts/ensure-assets.mjs && vitest run"
   },
   "dependencies": {
-    "hono": "^4.13.1"
+    "hono": "^4.13.7"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.3",
